@@ -25,7 +25,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: worker
-        run: npm ci
+        run: npm install
 
       - name: Prepare Wrangler config
         working-directory: worker
