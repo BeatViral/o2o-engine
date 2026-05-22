@@ -52,6 +52,7 @@ const OUTPUT_SCHEMA = {
       "known_assumed_unknown",
       "pathway_payload",
       "grounding_notes",
+      "responsibility_contract",
       "version"
     ],
     properties: {
@@ -416,6 +417,38 @@ const OUTPUT_SCHEMA = {
           }
         }
       },
+      responsibility_contract: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "decision_support_mode",
+          "context_attachment_checks",
+          "constraint_acknowledgement",
+          "smallest_safe_test",
+          "non_prescriptive_notice",
+          "escalation_triggers"
+        ],
+        properties: {
+          decision_support_mode: {
+            type: "string",
+            enum: ["Context-attached decision support"]
+          },
+          context_attachment_checks: {
+            type: "array",
+            items: { type: "string" }
+          },
+          constraint_acknowledgement: {
+            type: "array",
+            items: { type: "string" }
+          },
+          smallest_safe_test: { type: "string" },
+          non_prescriptive_notice: { type: "string" },
+          escalation_triggers: {
+            type: "array",
+            items: { type: "string" }
+          }
+        }
+      },
       grounding_notes: { type: "array", items: { type: "string" } },
       version: {
         type: "object",
@@ -447,13 +480,17 @@ const SYSTEM_PROMPT = [
   "8) Keep output consulting-grade, concise, actionable, and deterministic.",
   "9) For non-selected pathways, keep arrays present but minimal.",
   "10) Return strict JSON only, no markdown.",
+  "11) Do not issue blind prescriptions. Frame output as structured decision support with options, assumptions, and controls.",
+  "12) Explicitly acknowledge limits, constraints, and uncertainty where present.",
+  "13) Always include a smallest safe test before recommending scale actions.",
   "",
   "Content quality requirements:",
   "- Include concrete pilot actions and quality gates.",
   "- Define where humans approve, review, and override.",
   "- Add practical SOP drafts with triggers and steps.",
   "- Include metrics that can be measured weekly.",
-  "- Keep recommendations testable within 2-4 weeks where possible."
+  "- Keep recommendations testable within 2-4 weeks where possible.",
+  "- Use responsibility_contract to prove context attachment and non-prescriptive behavior."
 ].join("\n");
 
 export default {
@@ -752,6 +789,69 @@ function normalizeOutput(raw, context) {
   if (safe.system_card.clarity_level === "Vague" || safe.system_card.clarity_level === "Broad") {
     safe.clarification.needs_clarification = true;
     safe.clarification.assumption_based_draft_used = true;
+  }
+
+  if (!safe.responsibility_contract || typeof safe.responsibility_contract !== "object") {
+    safe.responsibility_contract = {};
+  }
+
+  safe.responsibility_contract.decision_support_mode = "Context-attached decision support";
+  safe.responsibility_contract.context_attachment_checks = ensureStringArray(
+    safe.responsibility_contract.context_attachment_checks
+  );
+  if (!safe.responsibility_contract.context_attachment_checks.length) {
+    safe.responsibility_contract.context_attachment_checks = [
+      "Recommendations are tied to user-provided language and stated context.",
+      "Assumptions are explicitly marked and separated from known facts.",
+      "Missing information is surfaced before high-commitment actions."
+    ];
+  }
+
+  safe.responsibility_contract.constraint_acknowledgement = ensureStringArray(
+    safe.responsibility_contract.constraint_acknowledgement
+  );
+  if (!safe.responsibility_contract.constraint_acknowledgement.length) {
+    safe.responsibility_contract.constraint_acknowledgement = [
+      "No assumption of budget, team capacity, or tooling without explicit confirmation.",
+      "Recommendations should start with low-risk, reversible experiments.",
+      "High-risk actions require human approval gates before execution."
+    ];
+  }
+
+  safe.responsibility_contract.smallest_safe_test =
+    cleanText(safe.responsibility_contract.smallest_safe_test, 500) ||
+    "Run one low-cost, time-boxed pilot for 3-7 days and define stop conditions before scaling.";
+
+  safe.responsibility_contract.non_prescriptive_notice =
+    cleanText(safe.responsibility_contract.non_prescriptive_notice, 600) ||
+    "This output is structured decision support, not a blind prescription. Validate assumptions and constraints before committing resources.";
+
+  safe.responsibility_contract.escalation_triggers = ensureStringArray(
+    safe.responsibility_contract.escalation_triggers
+  );
+  if (!safe.responsibility_contract.escalation_triggers.length) {
+    safe.responsibility_contract.escalation_triggers = [
+      "Pause execution when data quality is low or contradictory.",
+      "Escalate to human review when recommendations affect legal, financial, or reputational risk.",
+      "Stop and re-diagnose when pilot metrics are below threshold for two consecutive cycles."
+    ];
+  }
+
+  safe.next_actions = ensureStringArray(safe.next_actions);
+  if (!safe.next_actions.length) {
+    safe.next_actions = [safe.responsibility_contract.smallest_safe_test];
+  }
+
+  const hasSafeTestAction = safe.next_actions.some((item) => /test|pilot|experiment/i.test(item));
+  if (!hasSafeTestAction) {
+    safe.next_actions.unshift(safe.responsibility_contract.smallest_safe_test);
+  }
+
+  if (safe.system_card.missing_information.length >= 3 && safe.system_card.confidence_level === "HIGH") {
+    safe.system_card.confidence_level = "MEDIUM";
+    safe.grounding_notes.push(
+      "Confidence reduced because critical information is still missing."
+    );
   }
 
   return safe;

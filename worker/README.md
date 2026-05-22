@@ -8,6 +8,17 @@ Cloudflare Worker backend for O2O Engine. This service holds your OpenAI API key
 - `POST /api/build`
 - `POST /api/refine`
 
+## Response Guarantees
+
+Each generated system includes a strict `responsibility_contract` object with:
+
+- `decision_support_mode` (context-attached decision support)
+- `context_attachment_checks`
+- `constraint_acknowledgement`
+- `smallest_safe_test`
+- `non_prescriptive_notice`
+- `escalation_triggers`
+
 ## Request Contract
 
 ### `POST /api/build`

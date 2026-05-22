@@ -12,11 +12,20 @@ O2O Engine transforms any user-described opportunity into a structured, AI-enabl
 - Diagnosis engine (type, clarity, pathway)
 - Routing engine (Discovery, Workflow, Full OS)
 - Mandatory System Card contract
+- Mandatory Responsibility Contract (context attachment, constraint acknowledgement, smallest safe test, escalation triggers)
 - Structured consulting-grade output sections
 - Clarification protocol with up to 5 questions
 - Prioritization scoring labels
 - Iteration loop to refine existing system
 - Anti-generic grounding check
+
+## Responsibility Design
+
+- The engine returns decision support, not blind prescriptions.
+- Every output must surface known, assumed, and unknown information.
+- Recommendations are constrained by user context and stated limitations.
+- A smallest safe test is always included before scale actions.
+- Escalation triggers are included for high-risk scenarios.
 
 ## Quick Start
 

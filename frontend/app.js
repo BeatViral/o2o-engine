@@ -249,6 +249,7 @@ function renderSystem(system) {
   const card = system.system_card || {};
   const diagnosis = system.diagnosis || {};
   const clarification = system.clarification || {};
+  const responsibility = system.responsibility_contract || {};
   const knownAssumedUnknown = system.known_assumed_unknown || {};
   const opportunityMap = system.opportunity_map || {};
   const executionPlan = system.execution_plan || {};
@@ -317,6 +318,22 @@ function renderSystem(system) {
         ${renderList(knownAssumedUnknown.assumed)}
         <h4>Unknown</h4>
         ${renderList(knownAssumedUnknown.unknown)}
+      </article>
+
+      <article class="result-card">
+        <h3>Responsibility Contract</h3>
+        <div class="kv-grid">
+          <div class="kv"><strong>Decision Support Mode</strong><span>${escapeHtml(responsibility.decision_support_mode || "")}</span></div>
+          <div class="kv"><strong>Smallest Safe Test</strong><span>${escapeHtml(responsibility.smallest_safe_test || "")}</span></div>
+        </div>
+        <h4>Non-prescriptive Notice</h4>
+        <p>${escapeHtml(responsibility.non_prescriptive_notice || "")}</p>
+        <h4>Context Attachment Checks</h4>
+        ${renderList(responsibility.context_attachment_checks)}
+        <h4>Constraint Acknowledgement</h4>
+        ${renderList(responsibility.constraint_acknowledgement)}
+        <h4>Escalation Triggers</h4>
+        ${renderList(responsibility.escalation_triggers)}
       </article>
 
       <article class="result-card">
