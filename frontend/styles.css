@@ -25,7 +25,7 @@ body {
   min-height: 100vh;
   font-family: "Plus Jakarta Sans", sans-serif;
   color: var(--ink);
-  background: radial-gradient(circle at 20% 15%, #fff7ea 0%, #f6efe4 40%, #efe5d8 100%);
+  background: radial-gradient(circle at 18% 10%, #fff9ef 0%, #f6efe4 38%, #efe5d8 100%);
   line-height: 1.5;
   overflow-x: hidden;
 }
@@ -148,7 +148,10 @@ main,
 
 .hero h1 span {
   display: block;
-  color: #2c2f39;
+  color: transparent;
+  background: linear-gradient(120deg, #0f6269, #e55f23 70%);
+  -webkit-background-clip: text;
+  background-clip: text;
 }
 
 .hero-copy {
@@ -156,6 +159,16 @@ main,
   max-width: 720px;
   color: #363947;
   font-size: 1.04rem;
+}
+
+.hero-plain {
+  margin-top: 0.9rem;
+  max-width: 760px;
+  color: #1f3f45;
+  font-size: 1rem;
+  font-weight: 600;
+  border-left: 4px solid rgba(11, 183, 190, 0.55);
+  padding-left: 0.8rem;
 }
 
 .hero-metrics {
@@ -168,8 +181,8 @@ main,
 .hero-metrics article {
   border: 1px solid rgba(19, 19, 26, 0.16);
   border-radius: var(--radius-md);
-  padding: 0.95rem 1rem;
-  background: rgba(255, 255, 255, 0.66);
+  padding: 1rem 1.05rem;
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.92), rgba(243, 255, 255, 0.62));
   box-shadow: var(--shadow);
 }
 
@@ -195,7 +208,7 @@ main,
 }
 
 .panel {
-  background: rgba(255, 255, 255, 0.82);
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(245, 252, 252, 0.72));
   border: 1px solid rgba(19, 19, 26, 0.12);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
@@ -240,6 +253,16 @@ input {
   background: rgba(255, 255, 255, 0.92);
 }
 
+select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, #375b62 50%),
+    linear-gradient(135deg, #375b62 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 12px) calc(50% - 3px);
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+  padding-right: 2.2rem;
+}
+
 textarea {
   min-height: 190px;
   resize: vertical;
@@ -252,8 +275,12 @@ textarea {
 .control-grid {
   margin-top: 0.35rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(170px, 1fr) minmax(130px, 0.85fr) minmax(250px, 1.35fr);
   gap: 0.7rem;
+}
+
+.control-grid > div {
+  min-width: 0;
 }
 
 .action-row {
@@ -302,6 +329,37 @@ textarea {
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(241, 250, 250, 0.82));
 }
 
+.preview-sample {
+  border: 1px solid rgba(11, 183, 190, 0.34);
+  border-radius: 11px;
+  padding: 0.72rem;
+  background: linear-gradient(135deg, rgba(10, 45, 48, 0.92), rgba(16, 76, 81, 0.86));
+  color: #ddf9fb;
+}
+
+.preview-sample h4 {
+  margin: 0;
+  font-size: 0.73rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #95ecf1;
+}
+
+.preview-sample p {
+  margin: 0.25rem 0 0;
+  font-size: 0.88rem;
+}
+
+.preview-sample-list {
+  margin: 0.5rem 0 0;
+  padding-left: 1rem;
+}
+
+.preview-sample-list li {
+  margin: 0.18rem 0;
+  font-size: 0.85rem;
+}
+
 .preview-grid {
   display: grid;
   gap: 0.5rem;
@@ -331,6 +389,64 @@ textarea {
   margin-top: 0.7rem;
   color: #49506a;
   font-size: 0.87rem;
+}
+
+.demo {
+  margin-top: 1rem;
+}
+
+.demo-card {
+  padding: 1.2rem;
+  background: linear-gradient(135deg, rgba(18, 49, 53, 0.95), rgba(16, 67, 72, 0.84));
+  color: #e7fcfd;
+  border: 1px solid rgba(88, 233, 241, 0.22);
+}
+
+.demo-kicker {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #97eef3;
+  font-size: 0.75rem;
+}
+
+.demo-card h3 {
+  margin: 0.35rem 0 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+}
+
+.demo-input {
+  margin-top: 0.55rem;
+  color: #cff6f8;
+}
+
+.demo-grid {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.demo-item {
+  border: 1px solid rgba(137, 236, 243, 0.3);
+  border-radius: 12px;
+  padding: 0.65rem;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.demo-item h4 {
+  margin: 0;
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #98eaf0;
+}
+
+.demo-item p {
+  margin: 0.24rem 0 0;
+  color: #ecfdff;
 }
 
 .refinement {
@@ -535,6 +651,10 @@ textarea {
   }
 
   .how {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-grid {
     grid-template-columns: 1fr;
   }
 

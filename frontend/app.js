@@ -214,6 +214,39 @@ function renderLiveCardPreview() {
   const stage = elements.stage.value;
   const goal = elements.goal.value;
 
+  if (!idea) {
+    elements.liveCard.innerHTML = `
+      <div class="preview-grid">
+        <div class="preview-sample">
+          <h4>Sample While Idle</h4>
+          <p>Input: Our video editors are overloaded.</p>
+          <ul class="preview-sample-list">
+            <li>Diagnosis: Creative / Content + Automation / AI Enablement</li>
+            <li>Pathway: Workflow System</li>
+            <li>Output: Pilot plan, SOPs, roles, review cadence, AI support map</li>
+          </ul>
+        </div>
+        <div class="preview-row">
+          <h4>Opportunity Type</h4>
+          <p>Creative / Content</p>
+        </div>
+        <div class="preview-row">
+          <h4>Clarity Level</h4>
+          <p>Semi-clear</p>
+        </div>
+        <div class="preview-row">
+          <h4>Output Pathway</h4>
+          <p>Workflow System</p>
+        </div>
+        <div class="preview-row">
+          <h4>Confidence</h4>
+          <p>MEDIUM</p>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
   const opportunityType = selectedType === "Auto" ? inferOpportunityType(idea) : selectedType;
   const clarity = inferClarity(idea);
   const pathway = inferPathway(idea, stage, goal);
@@ -700,13 +733,14 @@ function inferClarity(input) {
 
 function inferPathway(input, stage, goal) {
   const text = String(input || "").trim();
+  const normalizedGoal = String(goal || "").toLowerCase();
   const clarity = inferClarity(text);
 
-  if (goal === "Build full operating system") {
+  if (normalizedGoal.includes("full operating system")) {
     return "Full Operating System";
   }
 
-  if (goal === "Build workflow system") {
+  if (normalizedGoal.includes("workflow system")) {
     return "Workflow System";
   }
 
