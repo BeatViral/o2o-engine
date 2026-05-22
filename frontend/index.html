@@ -228,8 +228,9 @@
 
       <section class="refinement reveal-delay-3">
         <article class="panel refinement-panel">
+          <p class="demo-kicker">Execution Control</p>
           <h3>Iteration Loop</h3>
-          <p>Refine the current system without restarting.</p>
+          <p class="refinement-lead">Refine the current system without restarting. Add constraints, change team size, or demand a tighter operating cadence.</p>
 
           <div class="chip-row" id="chipRow">
             <button class="chip" data-command="Make this more operational">Make this more operational</button>
@@ -241,8 +242,9 @@
             <button class="chip" data-command="Convert this into a weekly execution plan">Convert to weekly execution plan</button>
           </div>
 
+          <label class="refinement-label" for="refineCommand">Refinement Command</label>
           <div class="refine-row">
-            <input id="refineCommand" type="text" placeholder="Type a refinement command" />
+            <textarea id="refineCommand" class="refine-command" placeholder="Type a detailed refinement command. Example: Tighten quality gates for a 3-person team, reduce pilot risk, and convert outputs into weekly execution ownership."></textarea>
             <button id="refineBtn" class="secondary-btn">Update Existing System</button>
           </div>
         </article>
