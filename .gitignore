@@ -1,6 +1,68 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage
+*.lcov
+.nyc_output
+
+# Build and caches
+build/Release
+dist
+.next
+out
+.nuxt
+.output
+.cache
+.parcel-cache
+.vite/
+.svelte-kit/
+.temp
+.docusaurus
+.serverless/
+.fusebox/
+.dynamodb/
+.firebase/
+
+# Dependency directories
+node_modules/
+jspm_packages/
+web_modules/
+.pnpm-store
+
+# Package manager artifacts
+*.tgz
+.yarn-integrity
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Tool caches
+*.tsbuildinfo
+.npm
+.eslintcache
+.stylelintcache
+.node_repl_history
+.vscode-test
+.tern-port
+
 # Frontend
 frontend/.DS_Store
 
 # Worker
 worker/node_modules/
 worker/.dev.vars
+worker/wrangler.toml
