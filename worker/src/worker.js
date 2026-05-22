@@ -26,6 +26,31 @@ const OUTPUT_PATHWAYS = [
 const IMPACT_LABELS = ["HIGH", "MEDIUM", "LOW"];
 const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const PLAN_LIMITS = {
+  starter: {
+    plan: "starter",
+    label: "Starter",
+    monthly_generations: 100,
+    max_image_bytes: 1 * 1024 * 1024,
+    max_images_per_generation: 1
+  },
+  pro: {
+    plan: "pro",
+    label: "Pro",
+    monthly_generations: 500,
+    max_image_bytes: 4 * 1024 * 1024,
+    max_images_per_generation: 2
+  },
+  scale: {
+    plan: "scale",
+    label: "Scale",
+    monthly_generations: 2000,
+    max_image_bytes: 8 * 1024 * 1024,
+    max_images_per_generation: 4
+  }
+};
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing"]);
+const SESSION_TOKEN_TTL_SECONDS = 60 * 60 * 24 * 30;
 
 const OUTPUT_SCHEMA = {
   name: "o2o_system_contract",
@@ -508,6 +533,18 @@ export default {
       return corsJson(request, env, { ok: true, service: "o2o-engine", now: new Date().toISOString() });
     }
 
+    if (url.pathname === "/api/account" && request.method === "GET") {
+      return withErrorBoundary(request, env, () => handleAccount(request, env));
+    }
+
+    if (url.pathname === "/api/access/activate" && request.method === "POST") {
+      return withErrorBoundary(request, env, () => handleAccessActivate(request, env));
+    }
+
+    if (url.pathname === "/api/billing/webhook/lemon" && request.method === "POST") {
+      return withErrorBoundary(request, env, () => handleLemonWebhook(request, env));
+    }
+
     if (url.pathname === "/api/build" && request.method === "POST") {
       return withErrorBoundary(request, env, () => handleBuild(request, env));
     }
@@ -543,26 +580,222 @@ async function withErrorBoundary(request, env, fn) {
   }
 }
 
+async function handleAccount(request, env) {
+  const billingEnforced = isBillingEnforced(env);
+
+  if (!hasBillingStore(env)) {
+    if (billingEnforced) {
+      return corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Billing is enforced but SUBSCRIBER_KV is not configured."
+        },
+        503
+      );
+    }
+
+    return corsJson(request, env, {
+      ok: true,
+      billing_enforced: false,
+      authenticated: false,
+      account: null
+    });
+  }
+
+  if (billingEnforced && !hasSessionSecret(env)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "Billing is enforced but SESSION_SIGNING_SECRET is not configured."
+      },
+      503
+    );
+  }
+
+  const resolved = await resolveSubscriberFromRequest(request, env);
+  if (!resolved.subscriber || !isSubscriberActive(resolved.subscriber)) {
+    return corsJson(request, env, {
+      ok: true,
+      billing_enforced: billingEnforced,
+      authenticated: false,
+      account: null
+    });
+  }
+
+  const account = await buildAccountView(env, resolved.subscriber);
+  return corsJson(request, env, {
+    ok: true,
+    billing_enforced: billingEnforced,
+    authenticated: true,
+    account
+  });
+}
+
+async function handleAccessActivate(request, env) {
+  if (!hasBillingStore(env)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "SUBSCRIBER_KV is not configured for buyer access control."
+      },
+      503
+    );
+  }
+
+  if (!hasSessionSecret(env)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "SESSION_SIGNING_SECRET is required before activating access codes."
+      },
+      503
+    );
+  }
+
+  const body = await safeJson(request);
+  const accessCode = normalizeAccessCode(body.accessCode);
+  if (!accessCode) {
+    return corsJson(request, env, { ok: false, message: "Field accessCode is required." }, 400);
+  }
+
+  const subscriber = await getSubscriberByAccessCode(env, accessCode);
+  if (!subscriber) {
+    return corsJson(request, env, { ok: false, message: "Access code not recognized." }, 404);
+  }
+
+  if (!isSubscriberActive(subscriber)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "Subscription is not active. Reactivate billing to continue."
+      },
+      403
+    );
+  }
+
+  const token = await issueSessionToken(env, { subscriber_id: subscriber.subscriber_id });
+  const account = await buildAccountView(env, subscriber);
+
+  return corsJson(request, env, {
+    ok: true,
+    billing_enforced: isBillingEnforced(env),
+    authenticated: true,
+    token,
+    account
+  });
+}
+
+async function handleLemonWebhook(request, env) {
+  if (!hasBillingStore(env)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "SUBSCRIBER_KV is required for webhook sync."
+      },
+      503
+    );
+  }
+
+  const rawBody = await request.text();
+  if (!rawBody.trim()) {
+    return corsJson(request, env, { ok: false, message: "Webhook body is empty." }, 400);
+  }
+
+  const webhookSecret = String(env.LEMON_WEBHOOK_SECRET || "").trim();
+  if (webhookSecret) {
+    const signature =
+      request.headers.get("X-Signature") ||
+      request.headers.get("x-signature") ||
+      request.headers.get("Lemon-Signature") ||
+      "";
+
+    const valid = await verifyWebhookSignature(webhookSecret, rawBody, signature);
+    if (!valid) {
+      return corsJson(request, env, { ok: false, message: "Invalid webhook signature." }, 401);
+    }
+  }
+
+  let payload = {};
+  try {
+    payload = JSON.parse(rawBody);
+  } catch {
+    return corsJson(request, env, { ok: false, message: "Webhook body is not valid JSON." }, 400);
+  }
+
+  const normalized = normalizeLemonWebhookPayload(payload, env);
+  if (!normalized) {
+    return corsJson(request, env, { ok: true, ignored: true, message: "Unsupported webhook payload." });
+  }
+
+  const subscriber = await upsertSubscriberFromWebhook(env, normalized);
+  return corsJson(request, env, {
+    ok: true,
+    subscriber_id: subscriber.subscriber_id,
+    plan: subscriber.plan,
+    status: subscriber.status
+  });
+}
+
 async function handleBuild(request, env) {
   if (!env.OPENAI_API_KEY) {
     return corsJson(request, env, { ok: false, message: "Missing OPENAI_API_KEY secret." }, 500);
   }
 
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  const subscriber = access.subscriber;
+  const planLimits = subscriber ? getPlanLimits(subscriber.plan) : null;
+  const imageLimitBytes = planLimits ? planLimits.max_image_bytes : MAX_IMAGE_BYTES;
+
   const body = await safeJson(request);
   const userInput = cleanText(body.idea, 12000);
-  const imageContext = normalizeImageContext(body.imageContext);
+  const imageContext = normalizeImageContext(body.imageContext, imageLimitBytes);
 
   if (!userInput) {
     return corsJson(request, env, { ok: false, message: "Field idea is required." }, 400);
   }
 
   if (body.imageContext && !imageContext) {
+    const maxMb = (imageLimitBytes / (1024 * 1024)).toFixed(imageLimitBytes % (1024 * 1024) === 0 ? 0 : 2);
     return corsJson(
       request,
       env,
-      { ok: false, message: "imageContext must be a PNG/JPEG/WebP/GIF image up to 2 MB." },
+      { ok: false, message: `imageContext must be a PNG/JPEG/WebP/GIF image up to ${maxMb} MB.` },
       400
     );
+  }
+
+  if (subscriber) {
+    const quota = await checkGenerationQuota(env, subscriber);
+    if (!quota.allowed) {
+      const account = await buildAccountView(env, subscriber);
+      return corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Generation quota reached for the current billing period. Upgrade or wait for reset.",
+          billing_enforced: access.billing_enforced,
+          account
+        },
+        402
+      );
+    }
   }
 
   const inputPayload = {
@@ -592,9 +825,17 @@ async function handleBuild(request, env) {
     sourceInput: userInput
   });
 
+  let account = null;
+  if (subscriber) {
+    await incrementGenerationUsage(env, subscriber.subscriber_id);
+    account = await buildAccountView(env, subscriber);
+  }
+
   return corsJson(request, env, {
     ok: true,
     system: normalized,
+    billing_enforced: access.billing_enforced,
+    account,
     trace: {
       pathway: normalized.system_card.output_pathway,
       clarity: normalized.system_card.clarity_level,
@@ -608,6 +849,13 @@ async function handleRefine(request, env) {
     return corsJson(request, env, { ok: false, message: "Missing OPENAI_API_KEY secret." }, 500);
   }
 
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  const subscriber = access.subscriber;
+
   const body = await safeJson(request);
   const command = cleanText(body.command, 600);
   const currentSystem = body.currentSystem;
@@ -618,6 +866,24 @@ async function handleRefine(request, env) {
 
   if (!currentSystem || typeof currentSystem !== "object") {
     return corsJson(request, env, { ok: false, message: "Field currentSystem is required." }, 400);
+  }
+
+  if (subscriber) {
+    const quota = await checkGenerationQuota(env, subscriber);
+    if (!quota.allowed) {
+      const account = await buildAccountView(env, subscriber);
+      return corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Generation quota reached for the current billing period. Upgrade or wait for reset.",
+          billing_enforced: access.billing_enforced,
+          account
+        },
+        402
+      );
+    }
   }
 
   const refinePayload = {
@@ -635,7 +901,18 @@ async function handleRefine(request, env) {
     sourceInput: command
   });
 
-  return corsJson(request, env, { ok: true, system: normalized });
+  let account = null;
+  if (subscriber) {
+    await incrementGenerationUsage(env, subscriber.subscriber_id);
+    account = await buildAccountView(env, subscriber);
+  }
+
+  return corsJson(request, env, {
+    ok: true,
+    system: normalized,
+    billing_enforced: access.billing_enforced,
+    account
+  });
 }
 
 async function callOpenAIForSystem(env, mode, payload, options = {}) {
@@ -939,7 +1216,701 @@ function cleanText(value, limit) {
   return text.slice(0, limit);
 }
 
-function normalizeImageContext(value) {
+function isBillingEnforced(env) {
+  return String(env.BILLING_ENFORCED || "false").trim().toLowerCase() === "true";
+}
+
+function hasBillingStore(env) {
+  return Boolean(env.SUBSCRIBER_KV);
+}
+
+function hasSessionSecret(env) {
+  return Boolean(String(env.SESSION_SIGNING_SECRET || "").trim());
+}
+
+function resolvePlanKey(value) {
+  const text = String(value || "starter").trim().toLowerCase();
+  if (["scale", "team", "enterprise"].includes(text)) {
+    return "scale";
+  }
+  if (text === "pro") {
+    return "pro";
+  }
+  return "starter";
+}
+
+function getPlanLimits(planKey) {
+  const key = resolvePlanKey(planKey);
+  return PLAN_LIMITS[key] || PLAN_LIMITS.starter;
+}
+
+function resolveSubscriptionStatus(value) {
+  const text = String(value || "inactive").trim().toLowerCase();
+  if (text === "cancelled") {
+    return "canceled";
+  }
+  if (text === "on_trial") {
+    return "trialing";
+  }
+  if (!text) {
+    return "inactive";
+  }
+  return text;
+}
+
+function isSubscriberActive(subscriber) {
+  const status = resolveSubscriptionStatus(subscriber && subscriber.status);
+  return ACTIVE_SUBSCRIPTION_STATUSES.has(status);
+}
+
+function normalizeAccessCode(value) {
+  const code = String(value || "")
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, "");
+  if (code.length < 6 || code.length > 64) {
+    return "";
+  }
+  if (!/^[A-Z0-9\-]+$/.test(code)) {
+    return "";
+  }
+  return code;
+}
+
+function normalizeEmail(value) {
+  return cleanText(value, 220).toLowerCase();
+}
+
+function generateAccessCode() {
+  const raw = crypto.randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+  return `O2O-${raw.slice(0, 4)}-${raw.slice(4, 8)}-${raw.slice(8, 12)}`;
+}
+
+function currentUsageMonthKey(now = new Date()) {
+  const year = now.getUTCFullYear();
+  const month = String(now.getUTCMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+function usageResetIso(now = new Date()) {
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth();
+  return new Date(Date.UTC(year, month + 1, 1, 0, 0, 0, 0)).toISOString();
+}
+
+function usageCounterKey(subscriberId, monthKey) {
+  return `usage:${subscriberId}:${monthKey}`;
+}
+
+async function readUsageCount(env, subscriberId, monthKey = currentUsageMonthKey()) {
+  if (!hasBillingStore(env)) {
+    return 0;
+  }
+
+  const raw = await env.SUBSCRIBER_KV.get(usageCounterKey(subscriberId, monthKey));
+  if (!raw) {
+    return 0;
+  }
+
+  const asNumber = Number(raw);
+  if (Number.isFinite(asNumber) && asNumber >= 0) {
+    return asNumber;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    const count = Number(parsed && parsed.count);
+    if (Number.isFinite(count) && count >= 0) {
+      return count;
+    }
+  } catch {
+    // Fallback to 0 when historical value is malformed.
+  }
+
+  return 0;
+}
+
+async function incrementGenerationUsage(env, subscriberId) {
+  if (!hasBillingStore(env)) {
+    return;
+  }
+
+  const monthKey = currentUsageMonthKey();
+  const key = usageCounterKey(subscriberId, monthKey);
+  const current = await readUsageCount(env, subscriberId, monthKey);
+  await env.SUBSCRIBER_KV.put(key, String(current + 1));
+}
+
+async function checkGenerationQuota(env, subscriber) {
+  const limits = getPlanLimits(subscriber.plan);
+  const monthKey = currentUsageMonthKey();
+  const used = await readUsageCount(env, subscriber.subscriber_id, monthKey);
+  const limit = Number(limits.monthly_generations);
+
+  if (!Number.isFinite(limit) || limit <= 0) {
+    return {
+      allowed: true,
+      used,
+      limit: null,
+      remaining: null,
+      month_key: monthKey,
+      reset_at: usageResetIso()
+    };
+  }
+
+  return {
+    allowed: used < limit,
+    used,
+    limit,
+    remaining: Math.max(limit - used, 0),
+    month_key: monthKey,
+    reset_at: usageResetIso()
+  };
+}
+
+function resolveUpgradeUrl(env, currentPlan) {
+  const plan = resolvePlanKey(currentPlan);
+  const starter = cleanText(env.CHECKOUT_URL_STARTER, 600);
+  const pro = cleanText(env.CHECKOUT_URL_PRO, 600);
+  const scale = cleanText(env.CHECKOUT_URL_SCALE, 600);
+
+  if (plan === "starter") {
+    return pro || scale || starter || "";
+  }
+
+  if (plan === "pro") {
+    return scale || "";
+  }
+
+  return scale || "";
+}
+
+async function buildAccountView(env, subscriber) {
+  const plan = getPlanLimits(subscriber.plan);
+  const quota = await checkGenerationQuota(env, subscriber);
+
+  return {
+    subscriber_id: subscriber.subscriber_id,
+    customer_email: subscriber.customer_email || "",
+    customer_name: subscriber.customer_name || "",
+    plan: plan.plan,
+    plan_label: plan.label,
+    status: resolveSubscriptionStatus(subscriber.status),
+    usage: {
+      used: quota.used,
+      limit: quota.limit,
+      remaining: quota.remaining,
+      month_key: quota.month_key,
+      reset_at: quota.reset_at
+    },
+    limits: {
+      monthly_generations: plan.monthly_generations,
+      max_image_bytes: plan.max_image_bytes,
+      max_images_per_generation: plan.max_images_per_generation
+    },
+    billing_portal_url: cleanText(subscriber.billing_portal_url, 600),
+    upgrade_url: resolveUpgradeUrl(env, plan.plan)
+  };
+}
+
+async function getSubscriberById(env, subscriberId) {
+  if (!hasBillingStore(env)) {
+    return null;
+  }
+
+  const id = cleanText(subscriberId, 140);
+  if (!id) {
+    return null;
+  }
+
+  const raw = await env.SUBSCRIBER_KV.get(`subscriber:id:${id}`);
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object") {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function getSubscriberByAccessCode(env, accessCode) {
+  if (!hasBillingStore(env)) {
+    return null;
+  }
+
+  const normalizedCode = normalizeAccessCode(accessCode);
+  if (!normalizedCode) {
+    return null;
+  }
+
+  const subscriberId = await env.SUBSCRIBER_KV.get(`subscriber:code:${normalizedCode}`);
+  if (!subscriberId) {
+    return null;
+  }
+
+  return getSubscriberById(env, subscriberId);
+}
+
+async function getSubscriberBySubscriptionId(env, subscriptionId) {
+  if (!hasBillingStore(env)) {
+    return null;
+  }
+
+  const normalized = cleanText(subscriptionId, 140);
+  if (!normalized) {
+    return null;
+  }
+
+  const subscriberId = await env.SUBSCRIBER_KV.get(`subscriber:subscription:${normalized}`);
+  if (!subscriberId) {
+    return null;
+  }
+
+  return getSubscriberById(env, subscriberId);
+}
+
+async function getSubscriberByEmail(env, email) {
+  if (!hasBillingStore(env)) {
+    return null;
+  }
+
+  const normalized = normalizeEmail(email);
+  if (!normalized) {
+    return null;
+  }
+
+  const subscriberId = await env.SUBSCRIBER_KV.get(`subscriber:email:${normalized}`);
+  if (!subscriberId) {
+    return null;
+  }
+
+  return getSubscriberById(env, subscriberId);
+}
+
+async function persistSubscriberRecord(env, subscriber) {
+  const normalized = {
+    subscriber_id: cleanText(subscriber.subscriber_id, 160),
+    access_code: normalizeAccessCode(subscriber.access_code) || generateAccessCode(),
+    customer_email: normalizeEmail(subscriber.customer_email),
+    customer_name: cleanText(subscriber.customer_name, 220),
+    plan: resolvePlanKey(subscriber.plan),
+    status: resolveSubscriptionStatus(subscriber.status),
+    lemon_subscription_id: cleanText(subscriber.lemon_subscription_id, 160),
+    lemon_customer_id: cleanText(subscriber.lemon_customer_id, 160),
+    billing_portal_url: cleanText(subscriber.billing_portal_url, 700),
+    current_period_end: cleanText(subscriber.current_period_end, 80),
+    created_at: cleanText(subscriber.created_at, 80) || new Date().toISOString(),
+    updated_at: cleanText(subscriber.updated_at, 80) || new Date().toISOString()
+  };
+
+  await env.SUBSCRIBER_KV.put(`subscriber:id:${normalized.subscriber_id}`, JSON.stringify(normalized));
+  await env.SUBSCRIBER_KV.put(`subscriber:code:${normalized.access_code}`, normalized.subscriber_id);
+
+  if (normalized.lemon_subscription_id) {
+    await env.SUBSCRIBER_KV.put(`subscriber:subscription:${normalized.lemon_subscription_id}`, normalized.subscriber_id);
+  }
+
+  if (normalized.customer_email) {
+    await env.SUBSCRIBER_KV.put(`subscriber:email:${normalized.customer_email}`, normalized.subscriber_id);
+  }
+
+  return normalized;
+}
+
+function parseVariantPlanMap(raw) {
+  const map = {};
+  String(raw || "")
+    .split(/[;,\n]/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .forEach((entry) => {
+      const [variantIdRaw, planRaw] = entry.split(":");
+      const variantId = cleanText(variantIdRaw, 120);
+      const plan = resolvePlanKey(planRaw);
+      if (!variantId) {
+        return;
+      }
+      map[variantId] = plan;
+    });
+  return map;
+}
+
+function resolvePlanFromVariant(env, variantId, variantName) {
+  const mapped = parseVariantPlanMap(env.LEMON_VARIANT_PLAN_MAP);
+  const id = cleanText(variantId, 120);
+  if (id && mapped[id]) {
+    return mapped[id];
+  }
+
+  const lowerName = String(variantName || "").toLowerCase();
+  if (/scale|team|enterprise/.test(lowerName)) {
+    return "scale";
+  }
+  if (/pro/.test(lowerName)) {
+    return "pro";
+  }
+  return "starter";
+}
+
+function inferSubscriptionStatusFromEvent(eventName) {
+  const text = String(eventName || "").toLowerCase();
+  if (/cancel|refund|pause/.test(text)) {
+    return "canceled";
+  }
+  if (/expire/.test(text)) {
+    return "expired";
+  }
+  if (/trial/.test(text)) {
+    return "trialing";
+  }
+  if (/create|resume|renew|update/.test(text)) {
+    return "active";
+  }
+  return "inactive";
+}
+
+function normalizeLemonWebhookPayload(payload, env) {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const eventName = cleanText(payload.meta && payload.meta.event_name, 140).toLowerCase();
+  const data = payload.data && typeof payload.data === "object" ? payload.data : {};
+  const attributes = data.attributes && typeof data.attributes === "object" ? data.attributes : {};
+
+  const subscriptionId = cleanText(data.id, 160) || cleanText(attributes.subscription_id, 160);
+  const customerEmail = normalizeEmail(
+    attributes.user_email || attributes.customer_email || (payload.meta && payload.meta.custom_data && payload.meta.custom_data.email)
+  );
+
+  const status = resolveSubscriptionStatus(attributes.status || inferSubscriptionStatusFromEvent(eventName));
+  const variantId = cleanText(attributes.variant_id, 120);
+  const variantName = cleanText(attributes.variant_name || attributes.product_name, 200);
+  const plan = resolvePlanFromVariant(env, variantId, variantName);
+
+  const accessCode = normalizeAccessCode(
+    (payload.meta && payload.meta.custom_data && payload.meta.custom_data.access_code) ||
+      (attributes.custom_data && attributes.custom_data.access_code) ||
+      attributes.license_key ||
+      ""
+  );
+
+  if (!subscriptionId && !customerEmail && !accessCode) {
+    return null;
+  }
+
+  return {
+    event_name: eventName,
+    lemon_subscription_id: subscriptionId,
+    lemon_customer_id: cleanText(attributes.customer_id, 160),
+    customer_email: customerEmail,
+    customer_name: cleanText(attributes.user_name || attributes.customer_name, 220),
+    status,
+    plan,
+    access_code: accessCode,
+    billing_portal_url: cleanText(
+      (attributes.urls && attributes.urls.customer_portal) || attributes.customer_portal_url || "",
+      700
+    ),
+    current_period_end: cleanText(attributes.renews_at || attributes.ends_at || attributes.trial_ends_at, 80)
+  };
+}
+
+async function upsertSubscriberFromWebhook(env, normalized) {
+  const bySubscription = normalized.lemon_subscription_id
+    ? await getSubscriberBySubscriptionId(env, normalized.lemon_subscription_id)
+    : null;
+  const byEmail = !bySubscription && normalized.customer_email
+    ? await getSubscriberByEmail(env, normalized.customer_email)
+    : null;
+
+  const existing = bySubscription || byEmail;
+  const now = new Date().toISOString();
+
+  const subscriber = {
+    subscriber_id: existing && existing.subscriber_id ? existing.subscriber_id : `sub_${crypto.randomUUID()}`,
+    access_code: (existing && existing.access_code) || normalized.access_code || generateAccessCode(),
+    customer_email: normalized.customer_email || (existing && existing.customer_email) || "",
+    customer_name: normalized.customer_name || (existing && existing.customer_name) || "",
+    plan: normalized.plan || (existing && existing.plan) || "starter",
+    status: normalized.status || (existing && existing.status) || "inactive",
+    lemon_subscription_id: normalized.lemon_subscription_id || (existing && existing.lemon_subscription_id) || "",
+    lemon_customer_id: normalized.lemon_customer_id || (existing && existing.lemon_customer_id) || "",
+    billing_portal_url: normalized.billing_portal_url || (existing && existing.billing_portal_url) || "",
+    current_period_end: normalized.current_period_end || (existing && existing.current_period_end) || "",
+    created_at: (existing && existing.created_at) || now,
+    updated_at: now
+  };
+
+  return persistSubscriberRecord(env, subscriber);
+}
+
+function readAuthToken(request) {
+  const authHeader = request.headers.get("Authorization") || "";
+  const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/i);
+  if (bearerMatch && bearerMatch[1]) {
+    return bearerMatch[1].trim();
+  }
+
+  const fallback = request.headers.get("x-o2o-access-token") || "";
+  return fallback.trim();
+}
+
+async function issueSessionToken(env, payload) {
+  const subscriberId = cleanText(payload && payload.subscriber_id, 180);
+  if (!subscriberId) {
+    throw new Error("Cannot issue session token without subscriber_id.");
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const tokenPayload = {
+    subscriber_id: subscriberId,
+    iat: now,
+    exp: now + SESSION_TOKEN_TTL_SECONDS
+  };
+
+  const encodedPayload = base64UrlEncodeString(JSON.stringify(tokenPayload));
+  const signature = await signValueHmac(String(env.SESSION_SIGNING_SECRET || ""), encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+async function verifySessionToken(env, token) {
+  const value = String(token || "").trim();
+  if (!value || !hasSessionSecret(env)) {
+    return null;
+  }
+
+  const parts = value.split(".");
+  if (parts.length !== 2) {
+    return null;
+  }
+
+  const [encodedPayload, providedSignature] = parts;
+  const expectedSignature = await signValueHmac(String(env.SESSION_SIGNING_SECRET || ""), encodedPayload);
+  if (!timingSafeEqual(expectedSignature, providedSignature)) {
+    return null;
+  }
+
+  let payload = null;
+  try {
+    payload = JSON.parse(base64UrlDecodeString(encodedPayload));
+  } catch {
+    return null;
+  }
+
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  const exp = Number(payload.exp || 0);
+  const subscriberId = cleanText(payload.subscriber_id, 180);
+  if (!subscriberId || !Number.isFinite(exp) || exp < now) {
+    return null;
+  }
+
+  return {
+    subscriber_id: subscriberId,
+    iat: Number(payload.iat || 0),
+    exp
+  };
+}
+
+async function resolveSubscriberFromRequest(request, env) {
+  if (!hasBillingStore(env) || !hasSessionSecret(env)) {
+    return { subscriber: null, reason: "billing_not_configured" };
+  }
+
+  const token = readAuthToken(request);
+  if (!token) {
+    return { subscriber: null, reason: "token_missing" };
+  }
+
+  const session = await verifySessionToken(env, token);
+  if (!session) {
+    return { subscriber: null, reason: "token_invalid" };
+  }
+
+  const subscriber = await getSubscriberById(env, session.subscriber_id);
+  if (!subscriber) {
+    return { subscriber: null, reason: "subscriber_not_found" };
+  }
+
+  return { subscriber, reason: "ok" };
+}
+
+async function authorizeGenerationRequest(request, env) {
+  const billingEnforced = isBillingEnforced(env);
+
+  if (!billingEnforced) {
+    if (!hasBillingStore(env) || !hasSessionSecret(env)) {
+      return { subscriber: null, billing_enforced: false };
+    }
+
+    const optional = await resolveSubscriberFromRequest(request, env);
+    if (optional.subscriber && !isSubscriberActive(optional.subscriber)) {
+      return {
+        response: corsJson(
+          request,
+          env,
+          {
+            ok: false,
+            message: "Subscription is not active. Reactivate billing to continue.",
+            billing_enforced: false
+          },
+          403
+        )
+      };
+    }
+
+    return {
+      subscriber: optional.subscriber || null,
+      billing_enforced: false
+    };
+  }
+
+  if (!hasBillingStore(env) || !hasSessionSecret(env)) {
+    return {
+      response: corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Billing enforcement is enabled but subscriber auth is not configured.",
+          billing_enforced: true
+        },
+        503
+      )
+    };
+  }
+
+  const resolved = await resolveSubscriberFromRequest(request, env);
+  if (!resolved.subscriber) {
+    return {
+      response: corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Access code activation required. Open Subscriber Menu to activate your plan.",
+          billing_enforced: true
+        },
+        401
+      )
+    };
+  }
+
+  if (!isSubscriberActive(resolved.subscriber)) {
+    return {
+      response: corsJson(
+        request,
+        env,
+        {
+          ok: false,
+          message: "Subscription is not active. Reactivate billing to continue.",
+          billing_enforced: true
+        },
+        403
+      )
+    };
+  }
+
+  return {
+    subscriber: resolved.subscriber,
+    billing_enforced: true
+  };
+}
+
+async function signValueHmac(secretValue, inputText) {
+  const secret = String(secretValue || "");
+  const input = String(inputText || "");
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(secret),
+    {
+      name: "HMAC",
+      hash: "SHA-256"
+    },
+    false,
+    ["sign"]
+  );
+
+  const signature = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(input));
+  return bufferToHex(signature);
+}
+
+async function verifyWebhookSignature(secret, body, providedSignature) {
+  const normalizedProvided = String(providedSignature || "")
+    .trim()
+    .replace(/^sha256=/i, "")
+    .toLowerCase();
+  if (!normalizedProvided) {
+    return false;
+  }
+
+  const expected = await signValueHmac(secret, body);
+  return timingSafeEqual(expected, normalizedProvided);
+}
+
+function bufferToHex(buffer) {
+  return Array.from(new Uint8Array(buffer))
+    .map((value) => value.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+function timingSafeEqual(left, right) {
+  const a = String(left || "");
+  const b = String(right || "");
+  if (a.length !== b.length) {
+    return false;
+  }
+
+  let diff = 0;
+  for (let i = 0; i < a.length; i += 1) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+
+  return diff === 0;
+}
+
+function base64UrlEncodeString(text) {
+  const bytes = new TextEncoder().encode(String(text || ""));
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+
+  return btoa(binary)
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/g, "");
+}
+
+function base64UrlDecodeString(value) {
+  let base64 = String(value || "")
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+
+  while (base64.length % 4 !== 0) {
+    base64 += "=";
+  }
+
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+
+  return new TextDecoder().decode(bytes);
+}
+
+function normalizeImageContext(value, maxBytes = MAX_IMAGE_BYTES) {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -963,7 +1934,7 @@ function normalizeImageContext(value) {
   }
 
   const estimatedBytes = estimateBase64Bytes(base64Data);
-  if (!Number.isFinite(estimatedBytes) || estimatedBytes <= 0 || estimatedBytes > MAX_IMAGE_BYTES) {
+  if (!Number.isFinite(estimatedBytes) || estimatedBytes <= 0 || estimatedBytes > maxBytes) {
     return null;
   }
 

@@ -5,6 +5,9 @@ Cloudflare Worker backend for O2O Engine. This service holds your OpenAI API key
 ## Endpoints
 
 - `GET /api/health`
+- `GET /api/account`
+- `POST /api/access/activate`
+- `POST /api/billing/webhook/lemon`
 - `POST /api/build`
 - `POST /api/refine`
 
@@ -42,6 +45,10 @@ Each generated system includes a strict `responsibility_contract` object with:
 
 `imageContext` is optional. Supported types: PNG, JPEG, WebP, GIF up to 2 MB.
 
+When billing is enforced, include the subscriber session token:
+
+- `Authorization: Bearer <session_token>`
+
 ### `POST /api/refine`
 
 ```json
@@ -52,6 +59,24 @@ Each generated system includes a strict `responsibility_contract` object with:
 }
 ```
 
+### `POST /api/access/activate`
+
+```json
+{
+  "accessCode": "O2O-ABCD-1234"
+}
+```
+
+Returns a signed session token plus the account usage snapshot.
+
+### `GET /api/account`
+
+Returns whether billing is enforced, whether the request is authenticated, and plan usage/limits when available.
+
+### `POST /api/billing/webhook/lemon`
+
+Use this as your Lemon Squeezy webhook target. If `LEMON_WEBHOOK_SECRET` is set, signature verification is enforced.
+
 ## Deploy
 
 1. Install dependencies.
@@ -59,8 +84,11 @@ Each generated system includes a strict `responsibility_contract` object with:
 3. Set `ALLOWED_ORIGIN` to your GitHub Pages origin.
 4. Set secret:
    - `wrangler secret put OPENAI_API_KEY`
-5. Optional: bind KV and uncomment `RATE_LIMIT_KV` in `wrangler.toml`.
-6. Deploy:
+  - `wrangler secret put SESSION_SIGNING_SECRET`
+  - Optional: `wrangler secret put LEMON_WEBHOOK_SECRET`
+5. Bind `SUBSCRIBER_KV` in `wrangler.toml`.
+6. Optional: bind `RATE_LIMIT_KV` in `wrangler.toml`.
+7. Deploy:
    - `npm run deploy`
 
 ## Local dev

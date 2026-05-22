@@ -1,4 +1,9 @@
 window.O2O_CONFIG = {
   apiBase: "",
-  demoVideoUrl: ""
+  demoVideoUrl: "",
+  checkoutUrls: {
+    starter: "",
+    pro: "",
+    scale: ""
+  }
 };

@@ -18,6 +18,9 @@ O2O Engine transforms any user-described opportunity into a structured, AI-enabl
 - Prioritization scoring labels
 - Iteration loop to refine existing system
 - Anti-generic grounding check
+- Subscriber access menu with access-code activation
+- Plan-based generation quotas and image upload limits
+- Lemon Squeezy webhook sync endpoint for plan/status updates
 
 ## Responsibility Design
 
@@ -58,17 +61,27 @@ OpenAI key remains in Cloudflare Worker secrets (not GitHub). Set once using:
    - copy `wrangler.toml.example` to `wrangler.toml`
 4. Edit this value in `wrangler.toml`:
    - `ALLOWED_ORIGIN = "https://YOUR_GITHUB_USERNAME.github.io"`
-5. Set secret:
+5. Configure billing/access vars in `wrangler.toml`:
+   - `BILLING_ENFORCED = "true"` when you are ready to lock behind paywall
+   - `LEMON_VARIANT_PLAN_MAP = "<starter_variant>:starter,<pro_variant>:pro,<scale_variant>:scale"`
+   - Optional checkout links: `CHECKOUT_URL_STARTER`, `CHECKOUT_URL_PRO`, `CHECKOUT_URL_SCALE`
+6. Bind KV namespaces:
+   - Required: `SUBSCRIBER_KV` (subscriber records + monthly usage)
+   - Optional: `RATE_LIMIT_KV` (IP-level throttle)
+7. Set secrets:
    - `wrangler secret put OPENAI_API_KEY`
-6. Deploy:
+   - `wrangler secret put SESSION_SIGNING_SECRET`
+   - Optional for webhook verification: `wrangler secret put LEMON_WEBHOOK_SECRET`
+8. Deploy:
    - `npm run deploy`
-7. Copy deployed workers.dev URL.
+9. Copy deployed workers.dev URL.
 
 ## Configure Frontend
 
 1. Open `frontend/env.js`.
 2. Set:
    - `apiBase: "https://YOUR_WORKER_NAME.YOUR_SUBDOMAIN.workers.dev"`
+   - Optional checkout links under `checkoutUrls` for upgrade buttons in the subscriber menu.
 3. Save.
 
 ## Publish Frontend to GitHub Pages
@@ -91,6 +104,9 @@ Run these in `o2o-engine` after you create the GitHub repo:
 ## API Endpoints
 
 - `GET /api/health`
+- `GET /api/account`
+- `POST /api/access/activate`
+- `POST /api/billing/webhook/lemon`
 - `POST /api/build`
 - `POST /api/refine`
 
@@ -98,7 +114,9 @@ Run these in `o2o-engine` after you create the GitHub repo:
 
 - OpenAI key is never in frontend code.
 - Restrict CORS using `ALLOWED_ORIGIN`.
-- Optional KV rate limiting is built in.
+- Billing and usage enforcement happen server-side on every generation request.
+- Subscriber sessions are signed using `SESSION_SIGNING_SECRET`.
+- Lemon webhooks can be signature-verified with `LEMON_WEBHOOK_SECRET`.
 
 ## Suggested Next Upgrade
 

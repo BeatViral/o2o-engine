@@ -8,6 +8,21 @@ const elements = {
   imageInput: document.getElementById("imageInput"),
   imageMeta: document.getElementById("imageMeta"),
   clearImageBtn: document.getElementById("clearImageBtn"),
+  subscriberMenu: document.getElementById("subscriberMenu"),
+  subscriberPlanBadge: document.getElementById("subscriberPlanBadge"),
+  subscriberMessage: document.getElementById("subscriberMessage"),
+  accessCodeInput: document.getElementById("accessCodeInput"),
+  activateCodeBtn: document.getElementById("activateCodeBtn"),
+  subscriberStats: document.getElementById("subscriberStats"),
+  subscriberPlanName: document.getElementById("subscriberPlanName"),
+  subscriberStatus: document.getElementById("subscriberStatus"),
+  usageMeterFill: document.getElementById("usageMeterFill"),
+  subscriberUsageText: document.getElementById("subscriberUsageText"),
+  subscriberResetText: document.getElementById("subscriberResetText"),
+  subscriberImageLimitText: document.getElementById("subscriberImageLimitText"),
+  manageBillingLink: document.getElementById("manageBillingLink"),
+  upgradePlanLink: document.getElementById("upgradePlanLink"),
+  signOutBtn: document.getElementById("signOutBtn"),
   buildBtn: document.getElementById("buildBtn"),
   refineBtn: document.getElementById("refineBtn"),
   refineCommand: document.getElementById("refineCommand"),
@@ -20,17 +35,23 @@ const elements = {
 };
 
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
-const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const ACCESS_TOKEN_STORAGE_KEY = "o2o_access_token";
 
 const state = {
   currentSystem: null,
   busy: false,
-  imageContext: null
+  imageContext: null,
+  authToken: "",
+  account: null,
+  billingEnforced: false
 };
 
 initialize();
 
 function initialize() {
+  state.authToken = readStoredAccessToken();
+
   const previewTargets = [
     elements.ideaInput,
     elements.opportunityType,
@@ -39,12 +60,20 @@ function initialize() {
   ];
 
   previewTargets.forEach((target) => {
+    if (!target) {
+      return;
+    }
     target.addEventListener("input", renderLiveCardPreview);
     target.addEventListener("change", renderLiveCardPreview);
   });
 
-  elements.buildBtn.addEventListener("click", handleBuild);
-  elements.refineBtn.addEventListener("click", handleRefine);
+  if (elements.buildBtn) {
+    elements.buildBtn.addEventListener("click", handleBuild);
+  }
+
+  if (elements.refineBtn) {
+    elements.refineBtn.addEventListener("click", handleRefine);
+  }
 
   if (elements.imageInput) {
     elements.imageInput.addEventListener("change", handleImageSelection);
@@ -56,24 +85,52 @@ function initialize() {
 
   clearImageSelection(false);
 
-  elements.chipRow.addEventListener("click", (event) => {
-    const target = event.target;
-    if (!(target instanceof HTMLElement)) {
-      return;
-    }
+  if (elements.chipRow) {
+    elements.chipRow.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
 
-    const command = target.getAttribute("data-command");
-    if (!command) {
-      return;
-    }
+      const command = target.getAttribute("data-command");
+      if (!command) {
+        return;
+      }
 
-    elements.refineCommand.value = command;
-    elements.refineCommand.focus();
-  });
+      elements.refineCommand.value = command;
+      elements.refineCommand.focus();
+    });
+  }
+
+  if (elements.activateCodeBtn) {
+    elements.activateCodeBtn.addEventListener("click", activateAccessCode);
+  }
+
+  if (elements.accessCodeInput) {
+    elements.accessCodeInput.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") {
+        return;
+      }
+      event.preventDefault();
+      activateAccessCode();
+    });
+  }
+
+  if (elements.signOutBtn) {
+    elements.signOutBtn.addEventListener("click", () => {
+      state.authToken = "";
+      state.account = null;
+      clearStoredAccessToken();
+      renderSubscriberMenu();
+      setStatus("Signed out. Activate a buyer code to continue.", "neutral");
+    });
+  }
 
   renderLiveCardPreview();
   renderDemoVideoSlot();
+  renderSubscriberMenu();
   checkApiHealth();
+  refreshAccount();
 }
 
 function renderDemoVideoSlot() {
@@ -180,6 +237,7 @@ async function handleBuild() {
       throw new Error(data.message || "Build failed");
     }
 
+    syncAccountFromResponse(data);
     state.currentSystem = data.system;
     renderSystem(data.system);
     setStatus(
@@ -187,6 +245,7 @@ async function handleBuild() {
       "success"
     );
   } catch (error) {
+    maybeOpenSubscriberMenu(error);
     setStatus(error.message || "Build failed", "error");
   } finally {
     setBusy(false, "Idle");
@@ -217,27 +276,36 @@ async function handleRefine() {
       throw new Error(data.message || "Refine failed");
     }
 
+    syncAccountFromResponse(data);
     state.currentSystem = data.system;
     renderSystem(data.system);
     setStatus(`Updated to revision ${data.system.version.revision}`, "success");
   } catch (error) {
+    maybeOpenSubscriberMenu(error);
     setStatus(error.message || "Refine failed", "error");
   } finally {
     setBusy(false, "Idle");
   }
 }
 
-async function postJson(path, payload) {
+async function postJson(path, payload, options = {}) {
   const apiBase = resolveApiBase();
   if (!apiBase) {
     throw new Error("Missing apiBase in env.js");
   }
 
+  const includeAuth = options.includeAuth !== false;
+  const headers = {
+    "Content-Type": "application/json"
+  };
+
+  if (includeAuth && state.authToken) {
+    headers.Authorization = `Bearer ${state.authToken}`;
+  }
+
   const response = await fetch(`${apiBase}${path}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers,
     body: JSON.stringify(payload)
   });
 
@@ -248,8 +316,52 @@ async function postJson(path, payload) {
     data = {};
   }
 
+  if (response.status === 401 && includeAuth && state.authToken) {
+    state.authToken = "";
+    state.account = null;
+    clearStoredAccessToken();
+    renderSubscriberMenu();
+  }
+
   if (!response.ok) {
-    throw new Error(data.message || `Request failed (${response.status})`);
+    const error = new Error(data.message || `Request failed (${response.status})`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
+  }
+
+  return data;
+}
+
+async function getJson(path, options = {}) {
+  const apiBase = resolveApiBase();
+  if (!apiBase) {
+    throw new Error("Missing apiBase in env.js");
+  }
+
+  const includeAuth = options.includeAuth !== false;
+  const headers = {};
+  if (includeAuth && state.authToken) {
+    headers.Authorization = `Bearer ${state.authToken}`;
+  }
+
+  const response = await fetch(`${apiBase}${path}`, {
+    method: "GET",
+    headers
+  });
+
+  let data = {};
+  try {
+    data = await response.json();
+  } catch {
+    data = {};
+  }
+
+  if (!response.ok) {
+    const error = new Error(data.message || `Request failed (${response.status})`);
+    error.status = response.status;
+    error.data = data;
+    throw error;
   }
 
   return data;
@@ -282,6 +394,12 @@ function setBusy(isBusy, statusText) {
   if (elements.clearImageBtn) {
     elements.clearImageBtn.disabled = isBusy;
   }
+  if (elements.activateCodeBtn) {
+    elements.activateCodeBtn.disabled = isBusy;
+  }
+  if (elements.accessCodeInput) {
+    elements.accessCodeInput.disabled = isBusy;
+  }
   if (statusText) {
     setStatus(statusText, isBusy ? "loading" : "neutral");
   }
@@ -305,9 +423,10 @@ async function handleImageSelection() {
     return;
   }
 
-  if (file.size > MAX_IMAGE_BYTES) {
+  const limitBytes = getActiveImageLimitBytes();
+  if (file.size > limitBytes) {
     clearImageSelection(true);
-    setStatus("Image must be 2 MB or smaller", "warning");
+    setStatus(`Image exceeds your plan limit (${formatBytes(limitBytes)})`, "warning");
     return;
   }
 
@@ -316,15 +435,15 @@ async function handleImageSelection() {
     state.imageContext = {
       fileName: String(file.name || "uploaded-image").slice(0, 120),
       mimeType,
-      dataUrl
+      dataUrl,
+      bytes: file.size
     };
 
     if (elements.clearImageBtn) {
       elements.clearImageBtn.hidden = false;
     }
-    if (elements.imageMeta) {
-      elements.imageMeta.textContent = `Attached: ${state.imageContext.fileName} (${formatBytes(file.size)})`;
-    }
+
+    updateImageMeta();
 
     setStatus("Image attached as additional context", "success");
   } catch {
@@ -336,10 +455,6 @@ async function handleImageSelection() {
 function clearImageSelection(resetInput) {
   state.imageContext = null;
 
-  if (elements.imageMeta) {
-    elements.imageMeta.textContent = "No image attached.";
-  }
-
   if (elements.clearImageBtn) {
     elements.clearImageBtn.hidden = true;
   }
@@ -347,6 +462,8 @@ function clearImageSelection(resetInput) {
   if (resetInput && elements.imageInput) {
     elements.imageInput.value = "";
   }
+
+  updateImageMeta();
 }
 
 function readFileAsDataUrl(file) {
@@ -375,6 +492,313 @@ function formatBytes(bytes) {
   }
 
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+}
+
+function getActiveImageLimitBytes() {
+  const configured = state.account && state.account.limits ? Number(state.account.limits.max_image_bytes) : NaN;
+  if (Number.isFinite(configured) && configured > 0) {
+    return configured;
+  }
+  return DEFAULT_MAX_IMAGE_BYTES;
+}
+
+function updateImageMeta() {
+  if (!elements.imageMeta) {
+    return;
+  }
+
+  const limitLabel = formatBytes(getActiveImageLimitBytes());
+  if (!state.imageContext) {
+    elements.imageMeta.textContent = `No image attached. Plan limit: ${limitLabel}.`;
+    return;
+  }
+
+  const sizeLabel = formatBytes(state.imageContext.bytes || 0);
+  elements.imageMeta.textContent = `Attached: ${state.imageContext.fileName} (${sizeLabel}) • Plan limit: ${limitLabel}.`;
+}
+
+function syncAccountFromResponse(data) {
+  if (!data || typeof data !== "object") {
+    return;
+  }
+
+  if (typeof data.billing_enforced === "boolean") {
+    state.billingEnforced = data.billing_enforced;
+  }
+
+  if (data.account && typeof data.account === "object") {
+    state.account = data.account;
+  }
+
+  renderSubscriberMenu();
+  enforceImagePlanLimit();
+}
+
+function enforceImagePlanLimit() {
+  if (!state.imageContext) {
+    return;
+  }
+
+  const limitBytes = getActiveImageLimitBytes();
+  if (state.imageContext.bytes > limitBytes) {
+    clearImageSelection(true);
+    setStatus(`Current image was removed because it exceeds your plan limit (${formatBytes(limitBytes)}).`, "warning");
+  }
+}
+
+function maybeOpenSubscriberMenu(error) {
+  const message = String(error && error.message ? error.message : error || "");
+  if (!/(access|activate|subscriber|subscription|quota|plan|billing|generation)/i.test(message)) {
+    return;
+  }
+  openSubscriberMenu();
+}
+
+function openSubscriberMenu() {
+  if (elements.subscriberMenu) {
+    elements.subscriberMenu.open = true;
+  }
+}
+
+function readStoredAccessToken() {
+  try {
+    return String(window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) || "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function writeStoredAccessToken(token) {
+  try {
+    window.localStorage.setItem(ACCESS_TOKEN_STORAGE_KEY, token);
+  } catch {
+    // Ignore storage failures and continue with in-memory auth.
+  }
+}
+
+function clearStoredAccessToken() {
+  try {
+    window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+async function refreshAccount() {
+  const apiBase = resolveApiBase();
+  if (!apiBase) {
+    return;
+  }
+
+  try {
+    const data = await getJson("/api/account", { includeAuth: true });
+    if (!data || typeof data !== "object" || !data.ok) {
+      return;
+    }
+
+    state.billingEnforced = Boolean(data.billing_enforced);
+    if (data.authenticated && data.account && typeof data.account === "object") {
+      state.account = data.account;
+    } else {
+      state.account = null;
+      if (state.authToken) {
+        state.authToken = "";
+        clearStoredAccessToken();
+      }
+    }
+
+    renderSubscriberMenu();
+    enforceImagePlanLimit();
+  } catch {
+    renderSubscriberMenu();
+  }
+}
+
+async function activateAccessCode() {
+  const rawCode = String((elements.accessCodeInput && elements.accessCodeInput.value) || "").trim();
+  if (!rawCode) {
+    setSubscriberMessage("Enter your buyer access code first.");
+    openSubscriberMenu();
+    return;
+  }
+
+  try {
+    setBusy(true, "Activating access code");
+    const data = await postJson(
+      "/api/access/activate",
+      {
+        accessCode: rawCode
+      },
+      { includeAuth: false }
+    );
+
+    if (!data.ok || !data.token || !data.account) {
+      throw new Error(data.message || "Activation failed");
+    }
+
+    state.authToken = String(data.token || "");
+    writeStoredAccessToken(state.authToken);
+    state.account = data.account;
+    state.billingEnforced = Boolean(data.billing_enforced);
+
+    if (elements.accessCodeInput) {
+      elements.accessCodeInput.value = "";
+    }
+
+    renderSubscriberMenu();
+    enforceImagePlanLimit();
+    setSubscriberMessage("Access activated. Plan limits are now enforced for your account.");
+    setStatus(`Access activated: ${state.account.plan_label || state.account.plan || "Subscriber"}`, "success");
+  } catch (error) {
+    setSubscriberMessage(error.message || "Could not activate access code.");
+    setStatus(error.message || "Activation failed", "error");
+    openSubscriberMenu();
+  } finally {
+    setBusy(false, "Idle");
+  }
+}
+
+function setSubscriberMessage(text) {
+  if (!elements.subscriberMessage) {
+    return;
+  }
+  elements.subscriberMessage.textContent = text;
+}
+
+function renderSubscriberMenu() {
+  const authenticated = Boolean(state.authToken && state.account);
+  const account = authenticated ? state.account : null;
+  const usage = account && account.usage ? account.usage : null;
+  const limits = account && account.limits ? account.limits : null;
+
+  if (elements.subscriberPlanBadge) {
+    if (authenticated && usage && Number.isFinite(Number(usage.limit)) && Number(usage.limit) > 0) {
+      elements.subscriberPlanBadge.textContent = `${account.plan_label || account.plan} ${usage.used}/${usage.limit}`;
+    } else if (authenticated) {
+      elements.subscriberPlanBadge.textContent = account.plan_label || account.plan || "Subscriber";
+    } else if (state.billingEnforced) {
+      elements.subscriberPlanBadge.textContent = "Activate Access";
+    } else {
+      elements.subscriberPlanBadge.textContent = "Open Access";
+    }
+  }
+
+  if (elements.subscriberStats) {
+    elements.subscriberStats.hidden = !authenticated;
+  }
+
+  if (elements.signOutBtn) {
+    elements.signOutBtn.hidden = !authenticated;
+  }
+
+  if (elements.subscriberPlanName) {
+    elements.subscriberPlanName.textContent = authenticated ? account.plan_label || account.plan || "Subscriber" : "Not active";
+  }
+
+  if (elements.subscriberStatus) {
+    if (authenticated) {
+      elements.subscriberStatus.textContent = String(account.status || "active").toUpperCase();
+    } else {
+      elements.subscriberStatus.textContent = state.billingEnforced ? "AUTH REQUIRED" : "OPEN MODE";
+    }
+  }
+
+  if (elements.subscriberUsageText) {
+    if (authenticated && usage) {
+      if (Number.isFinite(Number(usage.limit)) && Number(usage.limit) > 0) {
+        elements.subscriberUsageText.textContent = `${usage.used}/${usage.limit} generations used (${usage.remaining} remaining)`;
+      } else {
+        elements.subscriberUsageText.textContent = `${usage.used} generations used (unlimited plan)`;
+      }
+    } else {
+      elements.subscriberUsageText.textContent = "Activate code to view usage.";
+    }
+  }
+
+  if (elements.usageMeterFill) {
+    let width = 0;
+    if (authenticated && usage && Number.isFinite(Number(usage.limit)) && Number(usage.limit) > 0) {
+      width = Math.max(0, Math.min(100, (Number(usage.used) / Number(usage.limit)) * 100));
+    }
+    elements.usageMeterFill.style.width = `${width}%`;
+  }
+
+  if (elements.subscriberResetText) {
+    elements.subscriberResetText.textContent = authenticated && usage && usage.reset_at
+      ? `Reset date: ${formatResetDate(usage.reset_at)}`
+      : "Reset date: -";
+  }
+
+  if (elements.subscriberImageLimitText) {
+    if (authenticated && limits) {
+      elements.subscriberImageLimitText.textContent = `Image limit: ${formatBytes(limits.max_image_bytes)} each, ${limits.max_images_per_generation} image per generation.`;
+    } else {
+      elements.subscriberImageLimitText.textContent = `Image limit: ${formatBytes(getActiveImageLimitBytes())} each.`;
+    }
+  }
+
+  const manageBillingUrl = authenticated ? String(account.billing_portal_url || "") : "";
+  if (elements.manageBillingLink) {
+    elements.manageBillingLink.hidden = !manageBillingUrl;
+    if (manageBillingUrl) {
+      elements.manageBillingLink.href = manageBillingUrl;
+    }
+  }
+
+  const upgradeUrl = resolveUpgradeUrl(account ? account.plan : "starter", account ? account.upgrade_url : "");
+  if (elements.upgradePlanLink) {
+    elements.upgradePlanLink.hidden = !upgradeUrl;
+    if (upgradeUrl) {
+      elements.upgradePlanLink.href = upgradeUrl;
+    }
+  }
+
+  if (!authenticated) {
+    if (state.billingEnforced) {
+      setSubscriberMessage("Access code required. Billing controls are active on this workspace.");
+    } else {
+      setSubscriberMessage("Billing enforcement is off. You can still activate a code to track plan usage.");
+    }
+  }
+
+  updateImageMeta();
+}
+
+function resolveUpgradeUrl(plan, explicitUrl) {
+  const direct = String(explicitUrl || "").trim();
+  if (direct) {
+    return direct;
+  }
+
+  const config = window.O2O_CONFIG && typeof window.O2O_CONFIG === "object" ? window.O2O_CONFIG : {};
+  const checkoutUrls = config.checkoutUrls && typeof config.checkoutUrls === "object" ? config.checkoutUrls : {};
+
+  const currentPlan = String(plan || "starter").toLowerCase();
+  if (currentPlan === "starter") {
+    return String(checkoutUrls.pro || checkoutUrls.scale || "").trim();
+  }
+  if (currentPlan === "pro") {
+    return String(checkoutUrls.scale || "").trim();
+  }
+  return String(checkoutUrls.scale || "").trim();
+}
+
+function formatResetDate(isoText) {
+  const value = String(isoText || "").trim();
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function setStatus(text, tone) {
