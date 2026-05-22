@@ -443,7 +443,6 @@ textarea {
   margin-top: 1rem;
 }
 
-.example-card,
 .video-panel {
   padding: 1.2rem;
   background: linear-gradient(135deg, rgba(8, 58, 63, 0.96), rgba(13, 93, 99, 0.88));
@@ -460,7 +459,6 @@ textarea {
   font-size: 0.75rem;
 }
 
-.example-card h3,
 .video-panel h3,
 .pricing-head h3 {
   margin: 0.35rem 0 0;
@@ -468,44 +466,65 @@ textarea {
   font-size: clamp(1.25rem, 2.2vw, 1.7rem);
 }
 
-.transform-grid {
-  margin-top: 0.8rem;
+.example-head h3 {
+  margin: 0.35rem 0 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.2rem, 2.2vw, 1.6rem);
+  color: #132f34;
+  max-width: 880px;
+}
+
+.examples-grid {
+  margin-top: 0.85rem;
   display: grid;
-  gap: 0.75rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
 }
 
-.transform-block {
-  border: 1px solid rgba(137, 236, 243, 0.3);
-  border-radius: 14px;
-  padding: 0.8rem;
-  background: rgba(255, 255, 255, 0.06);
+.example-use-card {
+  padding: 1rem;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(0, 216, 222, 0.24);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94), rgba(235, 255, 255, 0.82));
 }
 
-.output-block {
-  background: linear-gradient(145deg, rgba(0, 216, 222, 0.2), rgba(255, 106, 43, 0.22));
+.example-use-card:nth-child(2) {
+  border-color: rgba(255, 106, 43, 0.32);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 242, 232, 0.84));
 }
 
-.transform-block h4 {
+.example-use-card:nth-child(3) {
+  border-color: rgba(255, 200, 87, 0.45);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 226, 0.86));
+}
+
+.example-number {
   margin: 0;
+  font-family: "IBM Plex Mono", monospace;
   font-size: 0.76rem;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #98eaf0;
+  color: #0c7076;
 }
 
-.transform-block p {
-  margin: 0.24rem 0 0;
-  color: #ecfdff;
+.example-use-card h4 {
+  margin: 0.45rem 0 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.1rem;
+  line-height: 1.22;
 }
 
-.transform-block ul {
-  margin: 0.55rem 0 0;
+.example-use-card ul {
+  margin: 0.72rem 0 0;
   padding-left: 1rem;
+  flex: 1;
 }
 
-.transform-block li {
-  margin: 0.22rem 0;
+.example-use-card li {
+  margin: 0.28rem 0;
+  color: #374754;
 }
 
 .video-slot {
@@ -897,7 +916,7 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .transform-grid,
+  .examples-grid,
   .pricing-grid {
     grid-template-columns: 1fr;
   }
