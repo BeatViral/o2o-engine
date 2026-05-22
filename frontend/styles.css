@@ -474,30 +474,24 @@ textarea {
   max-width: 880px;
 }
 
-.examples-grid {
+.examples-stack {
   margin-top: 0.85rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 0.85rem;
 }
 
-.example-use-card {
+.example-case {
   padding: 1rem;
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
   border: 1px solid rgba(0, 216, 222, 0.24);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.94), rgba(235, 255, 255, 0.82));
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(243, 255, 255, 0.84));
 }
 
-.example-use-card:nth-child(2) {
-  border-color: rgba(255, 106, 43, 0.32);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 242, 232, 0.84));
-}
-
-.example-use-card:nth-child(3) {
-  border-color: rgba(255, 200, 87, 0.45);
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.95), rgba(255, 248, 226, 0.86));
+.case-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.72rem;
 }
 
 .example-number {
@@ -507,24 +501,89 @@ textarea {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: #0c7076;
+  border-radius: 999px;
+  padding: 0.18rem 0.58rem;
+  background: rgba(0, 216, 222, 0.14);
 }
 
-.example-use-card h4 {
-  margin: 0.45rem 0 0;
+.case-head h4 {
+  margin: 0;
   font-family: "Bricolage Grotesque", sans-serif;
-  font-size: 1.1rem;
-  line-height: 1.22;
+  font-size: 1.14rem;
+  color: #11262c;
 }
 
-.example-use-card ul {
-  margin: 0.72rem 0 0;
+.case-layout {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr;
+  gap: 0.7rem;
+}
+
+.case-block {
+  border: 1px solid rgba(0, 216, 222, 0.26);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.case-diagnosis {
+  background: linear-gradient(150deg, rgba(0, 216, 222, 0.12), rgba(255, 255, 255, 0.86));
+}
+
+.case-output {
+  background: linear-gradient(150deg, rgba(255, 106, 43, 0.12), rgba(255, 255, 255, 0.86));
+  border-color: rgba(255, 106, 43, 0.3);
+}
+
+.case-block h5 {
+  margin: 0;
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0f656c;
+}
+
+.case-question {
+  margin: 0.48rem 0 0;
+  color: #223742;
+  line-height: 1.4;
+}
+
+.case-list {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.case-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.55rem;
+  padding-top: 0.42rem;
+  border-top: 1px solid rgba(16, 103, 111, 0.15);
+}
+
+.case-list li span {
+  font-size: 0.82rem;
+  color: #35555f;
+}
+
+.case-list li strong {
+  font-size: 0.88rem;
+  color: #14353d;
+  text-align: right;
+}
+
+.case-bullets {
+  margin: 0.5rem 0 0;
   padding-left: 1rem;
-  flex: 1;
 }
 
-.example-use-card li {
-  margin: 0.28rem 0;
-  color: #374754;
+.case-bullets li {
+  margin: 0.24rem 0;
+  color: #2f4753;
 }
 
 .video-slot {
@@ -916,9 +975,21 @@ textarea {
     grid-template-columns: 1fr;
   }
 
-  .examples-grid,
+  .examples-stack,
   .pricing-grid {
     grid-template-columns: 1fr;
+  }
+
+  .case-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .case-list li {
+    flex-direction: column;
+  }
+
+  .case-list li strong {
+    text-align: left;
   }
 
   .hero-metrics {
