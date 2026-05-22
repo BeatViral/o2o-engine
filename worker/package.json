@@ -1,0 +1,14 @@
+{
+  "name": "o2o-engine-worker",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev src/worker.js --port 8787",
+    "deploy": "wrangler deploy",
+    "check": "node --check src/worker.js"
+  },
+  "devDependencies": {
+    "wrangler": "^3.106.0"
+  }
+}

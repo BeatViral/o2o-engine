@@ -1,0 +1,6 @@
+# Frontend
+frontend/.DS_Store
+
+# Worker
+worker/node_modules/
+worker/.dev.vars

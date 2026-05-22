@@ -1,0 +1,19 @@
+name = "o2o-engine-api"
+main = "src/worker.js"
+compatibility_date = "2026-05-22"
+
+# Optional: use workers.dev for quick testing.
+# route = "api.yourdomain.com/*"
+
+[vars]
+ALLOWED_ORIGIN = "*"
+OPENAI_MODEL = "gpt-4.1-mini"
+RATE_LIMIT_PER_MINUTE = "20"
+
+# Optional KV for per-IP rate limiting.
+# [[kv_namespaces]]
+# binding = "RATE_LIMIT_KV"
+# id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+# Required secrets (set with Wrangler):
+# wrangler secret put OPENAI_API_KEY

@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>O2O Engine | Opportunity to Operating System</title>
+    <meta
+      name="description"
+      content="O2O Engine transforms any idea, problem, or opportunity into a structured AI-enabled operating system."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="atmosphere" aria-hidden="true">
+      <div class="glow glow-a"></div>
+      <div class="glow glow-b"></div>
+      <div class="grid-fade"></div>
+    </div>
+
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark">O2O</span>
+        <span class="brand-name">Opportunity-to-Operating-System Engine</span>
+      </div>
+      <a class="header-cta" href="#studio">Try the Engine</a>
+    </header>
+
+    <main>
+      <section class="hero reveal">
+        <p class="eyebrow">AI Strategy Infrastructure</p>
+        <h1>
+          From raw opportunity
+          <span>to an execution-ready operating system</span>
+        </h1>
+        <p class="hero-copy">
+          O2O diagnoses what kind of opportunity you have, selects the right pathway, and returns a consulting-grade
+          system card, workflow, pilot plan, controls, and next actions.
+        </p>
+        <div class="hero-metrics">
+          <article>
+            <h2>3</h2>
+            <p>Adaptive pathways</p>
+          </article>
+          <article>
+            <h2>14-30</h2>
+            <p>Day execution plans</p>
+          </article>
+          <article>
+            <h2>1</h2>
+            <p>Deterministic system contract</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="studio" class="studio reveal-delay">
+        <div class="studio-grid">
+          <article class="panel input-panel">
+            <h2>Describe the opportunity</h2>
+            <p class="panel-note">Use plain language. Messy input is fine. O2O will diagnose first.</p>
+
+            <label for="ideaInput">Opportunity Input</label>
+            <textarea
+              id="ideaInput"
+              placeholder="Example: We have enterprise onboarding delays, inconsistent handoffs, and no clear weekly operating rhythm. I need an AI-enabled system my 4-person team can run without adding headcount."
+            ></textarea>
+
+            <div class="control-grid">
+              <div>
+                <label for="opportunityType">Opportunity Type</label>
+                <select id="opportunityType">
+                  <option>Auto</option>
+                  <option>Physical Operations</option>
+                  <option>Product Build</option>
+                  <option>Creative / Content</option>
+                  <option>Team Performance</option>
+                  <option>Customer / Support</option>
+                  <option>Strategy / Discovery</option>
+                  <option>Automation / AI Enablement</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="stage">Stage</label>
+                <select id="stage">
+                  <option>Discovery</option>
+                  <option>Design</option>
+                  <option>Pilot</option>
+                  <option>Scale</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="goal">Goal</label>
+                <select id="goal">
+                  <option>Diagnose and choose pathway</option>
+                  <option>Build workflow system</option>
+                  <option>Build full operating system</option>
+                  <option>Create execution plan</option>
+                </select>
+              </div>
+            </div>
+
+            <label for="constraintsInput">Constraints (optional)</label>
+            <input
+              id="constraintsInput"
+              type="text"
+              placeholder="Example: 3 people, max 15 hours weekly, no new software spend"
+            />
+
+            <label for="contextInput">Context (optional)</label>
+            <textarea
+              id="contextInput"
+              class="context-area"
+              placeholder="Team setup, tech stack, domain specifics, risks, deadlines"
+            ></textarea>
+
+            <div class="action-row">
+              <button id="buildBtn" class="primary-btn">Diagnose & Build System</button>
+              <span id="status" class="status">Idle</span>
+            </div>
+          </article>
+
+          <article class="panel preview-panel">
+            <h3>Live System Card Preview</h3>
+            <div id="liveCard" class="live-card"></div>
+            <p class="preview-footnote">
+              Final classifications are generated by the diagnosis engine.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section class="refinement reveal-delay-2">
+        <article class="panel refinement-panel">
+          <h3>Iteration Loop</h3>
+          <p>Refine the current system without restarting.</p>
+
+          <div class="chip-row" id="chipRow">
+            <button class="chip" data-command="Make this more operational">Make this more operational</button>
+            <button class="chip" data-command="Turn this into SOPs">Turn this into SOPs</button>
+            <button class="chip" data-command="Build the pilot plan">Build the pilot plan</button>
+            <button class="chip" data-command="Add AI automation ideas">Add AI automation ideas</button>
+            <button class="chip" data-command="Simplify for a small team">Simplify for a small team</button>
+            <button class="chip" data-command="Make this investor-ready">Make this investor-ready</button>
+            <button class="chip" data-command="Convert this into a weekly execution plan">Convert to weekly execution plan</button>
+          </div>
+
+          <div class="refine-row">
+            <input id="refineCommand" type="text" placeholder="Type a refinement command" />
+            <button id="refineBtn" class="secondary-btn">Update Existing System</button>
+          </div>
+        </article>
+      </section>
+
+      <section id="outputSection" class="output" hidden>
+        <div id="output"></div>
+      </section>
+
+      <section class="how reveal-delay-3">
+        <article class="how-card">
+          <h3>Diagnose</h3>
+          <p>Classifies opportunity type, clarity level, pathway, and confidence.</p>
+        </article>
+        <article class="how-card">
+          <h3>Route</h3>
+          <p>Selects Discovery System, Workflow System, or Full Operating System.</p>
+        </article>
+        <article class="how-card">
+          <h3>Execute</h3>
+          <p>Outputs workflows, SOPs, controls, pilot plans, metrics, and next actions.</p>
+        </article>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <p>O2O Engine. Structured outputs. Human-in-the-loop control.</p>
+    </footer>
+
+    <script src="env.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>
