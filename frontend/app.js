@@ -11,6 +11,7 @@ const elements = {
   chipRow: document.getElementById("chipRow"),
   status: document.getElementById("status"),
   liveCard: document.getElementById("liveCard"),
+  demoVideoSlot: document.getElementById("demoVideoSlot"),
   output: document.getElementById("output"),
   outputSection: document.getElementById("outputSection")
 };
@@ -54,7 +55,59 @@ function initialize() {
   });
 
   renderLiveCardPreview();
+  renderDemoVideoSlot();
   checkApiHealth();
+}
+
+function renderDemoVideoSlot() {
+  if (!elements.demoVideoSlot) {
+    return;
+  }
+
+  const configured =
+    window.O2O_CONFIG && typeof window.O2O_CONFIG.demoVideoUrl === "string"
+      ? window.O2O_CONFIG.demoVideoUrl.trim()
+      : "";
+
+  const embedUrl = normalizeDemoVideoUrl(configured);
+
+  if (embedUrl) {
+    elements.demoVideoSlot.innerHTML = `
+      <iframe
+        src="${escapeHtml(embedUrl)}"
+        title="O2O Engine demo video"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen
+        loading="lazy"
+      ></iframe>
+    `;
+    return;
+  }
+
+  elements.demoVideoSlot.innerHTML = `
+    <div class="video-placeholder">
+      <h4>30-second demo slot ready</h4>
+      <p>Set demoVideoUrl in env.js with your Loom share link.</p>
+      <p>Recommended recording flow: messy input -> diagnosis -> routing -> system generation -> iteration.</p>
+    </div>
+  `;
+}
+
+function normalizeDemoVideoUrl(url) {
+  const value = String(url || "").trim();
+  if (!value) {
+    return "";
+  }
+
+  if (/^https:\/\/www\.loom\.com\/share\//i.test(value)) {
+    return value.replace(/\/share\//i, "/embed/");
+  }
+
+  if (/^https:\/\/www\.loom\.com\/embed\//i.test(value)) {
+    return value;
+  }
+
+  return value;
 }
 
 async function checkApiHealth() {

@@ -1,3 +1,4 @@
 window.O2O_CONFIG = {
-  apiBase: ""
+  apiBase: "",
+  demoVideoUrl: ""
 };
