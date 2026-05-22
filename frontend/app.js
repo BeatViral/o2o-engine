@@ -5,6 +5,9 @@ const elements = {
   goal: document.getElementById("goal"),
   constraintsInput: document.getElementById("constraintsInput"),
   contextInput: document.getElementById("contextInput"),
+  imageInput: document.getElementById("imageInput"),
+  imageMeta: document.getElementById("imageMeta"),
+  clearImageBtn: document.getElementById("clearImageBtn"),
   buildBtn: document.getElementById("buildBtn"),
   refineBtn: document.getElementById("refineBtn"),
   refineCommand: document.getElementById("refineCommand"),
@@ -16,9 +19,13 @@ const elements = {
   outputSection: document.getElementById("outputSection")
 };
 
+const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+
 const state = {
   currentSystem: null,
-  busy: false
+  busy: false,
+  imageContext: null
 };
 
 initialize();
@@ -38,6 +45,16 @@ function initialize() {
 
   elements.buildBtn.addEventListener("click", handleBuild);
   elements.refineBtn.addEventListener("click", handleRefine);
+
+  if (elements.imageInput) {
+    elements.imageInput.addEventListener("change", handleImageSelection);
+  }
+
+  if (elements.clearImageBtn) {
+    elements.clearImageBtn.addEventListener("click", () => clearImageSelection(true));
+  }
+
+  clearImageSelection(false);
 
   elements.chipRow.addEventListener("click", (event) => {
     const target = event.target;
@@ -148,6 +165,14 @@ async function handleBuild() {
     allowAssumptions: true
   };
 
+  if (state.imageContext) {
+    payload.imageContext = {
+      fileName: state.imageContext.fileName,
+      mimeType: state.imageContext.mimeType,
+      dataUrl: state.imageContext.dataUrl
+    };
+  }
+
   try {
     setBusy(true, "Building system");
     const data = await postJson("/api/build", payload);
@@ -251,9 +276,105 @@ function setBusy(isBusy, statusText) {
   state.busy = isBusy;
   elements.buildBtn.disabled = isBusy;
   elements.refineBtn.disabled = isBusy;
+  if (elements.imageInput) {
+    elements.imageInput.disabled = isBusy;
+  }
+  if (elements.clearImageBtn) {
+    elements.clearImageBtn.disabled = isBusy;
+  }
   if (statusText) {
     setStatus(statusText, isBusy ? "loading" : "neutral");
   }
+}
+
+async function handleImageSelection() {
+  if (!elements.imageInput) {
+    return;
+  }
+
+  const file = elements.imageInput.files && elements.imageInput.files[0];
+  if (!file) {
+    clearImageSelection(false);
+    return;
+  }
+
+  const mimeType = String(file.type || "").toLowerCase();
+  if (!SUPPORTED_IMAGE_TYPES.has(mimeType)) {
+    clearImageSelection(true);
+    setStatus("Use PNG, JPEG, WebP, or GIF for image context", "warning");
+    return;
+  }
+
+  if (file.size > MAX_IMAGE_BYTES) {
+    clearImageSelection(true);
+    setStatus("Image must be 2 MB or smaller", "warning");
+    return;
+  }
+
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    state.imageContext = {
+      fileName: String(file.name || "uploaded-image").slice(0, 120),
+      mimeType,
+      dataUrl
+    };
+
+    if (elements.clearImageBtn) {
+      elements.clearImageBtn.hidden = false;
+    }
+    if (elements.imageMeta) {
+      elements.imageMeta.textContent = `Attached: ${state.imageContext.fileName} (${formatBytes(file.size)})`;
+    }
+
+    setStatus("Image attached as additional context", "success");
+  } catch {
+    clearImageSelection(true);
+    setStatus("Could not read image file", "error");
+  }
+}
+
+function clearImageSelection(resetInput) {
+  state.imageContext = null;
+
+  if (elements.imageMeta) {
+    elements.imageMeta.textContent = "No image attached.";
+  }
+
+  if (elements.clearImageBtn) {
+    elements.clearImageBtn.hidden = true;
+  }
+
+  if (resetInput && elements.imageInput) {
+    elements.imageInput.value = "";
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      if (!result.startsWith("data:")) {
+        reject(new Error("Invalid image data"));
+        return;
+      }
+      resolve(result);
+    };
+    reader.onerror = () => reject(reader.error || new Error("Image read failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) {
+    return "0 KB";
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${Math.round(bytes / 1024)} KB`;
+  }
+
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function setStatus(text, tone) {

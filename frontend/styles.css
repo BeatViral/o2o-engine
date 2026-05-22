@@ -170,10 +170,41 @@ main,
 }
 
 .hero-copy {
+  margin: 0;
+  color: #18333a;
+  font-size: clamp(1.05rem, 1.35vw, 1.22rem);
+  line-height: 1.55;
+}
+
+.hero-heart {
   margin-top: 1rem;
-  max-width: 720px;
-  color: #363947;
-  font-size: 1.04rem;
+  max-width: 980px;
+  border-radius: 18px;
+  padding: 0.95rem 1rem;
+  border: 1px solid rgba(0, 216, 222, 0.4);
+  background:
+    radial-gradient(circle at 84% 20%, rgba(255, 200, 87, 0.22), rgba(255, 200, 87, 0) 40%),
+    linear-gradient(120deg, rgba(255, 255, 255, 0.96), rgba(235, 255, 255, 0.86));
+  box-shadow:
+    0 18px 34px rgba(8, 19, 24, 0.13),
+    0 0 0 1px rgba(255, 255, 255, 0.7) inset,
+    0 0 34px rgba(0, 216, 222, 0.16);
+  animation: heartGlow 4.2s ease-in-out infinite;
+}
+
+.hero-heart-kicker {
+  margin: 0 0 0.38rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.62rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.73rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #0b5f66;
+  background: linear-gradient(125deg, rgba(0, 216, 222, 0.18), rgba(255, 106, 43, 0.2));
 }
 
 .hero-plain {
@@ -303,6 +334,45 @@ select {
 textarea {
   min-height: 190px;
   resize: vertical;
+}
+
+.image-input {
+  min-height: 46px;
+  padding-block: 0.55rem;
+}
+
+.upload-row {
+  margin-top: 0.35rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.upload-row .image-input {
+  flex: 1;
+  min-width: 240px;
+}
+
+.upload-clear {
+  border: 1px solid rgba(19, 19, 26, 0.2);
+  border-radius: 999px;
+  padding: 0.58rem 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  color: #27464e;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.92), rgba(238, 250, 251, 0.84));
+}
+
+.upload-clear:hover {
+  border-color: rgba(0, 216, 222, 0.56);
+  box-shadow: 0 10px 20px rgba(0, 168, 176, 0.16);
+}
+
+.upload-meta {
+  margin: 0.45rem 0 0;
+  font-size: 0.83rem;
+  color: #3d5260;
 }
 
 .context-area {
@@ -958,6 +1028,23 @@ textarea {
   }
 }
 
+@keyframes heartGlow {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 34px rgba(8, 19, 24, 0.13),
+      0 0 0 1px rgba(255, 255, 255, 0.7) inset,
+      0 0 24px rgba(0, 216, 222, 0.12);
+  }
+
+  50% {
+    box-shadow:
+      0 20px 36px rgba(8, 19, 24, 0.15),
+      0 0 0 1px rgba(255, 255, 255, 0.82) inset,
+      0 0 38px rgba(255, 106, 43, 0.16);
+  }
+}
+
 @media (max-width: 1000px) {
   .studio-grid {
     grid-template-columns: 1fr;
@@ -994,6 +1081,10 @@ textarea {
 
   .hero-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .hero-heart {
+    padding: 0.9rem;
   }
 }
 

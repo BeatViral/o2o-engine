@@ -31,9 +31,16 @@ Each generated system includes a strict `responsibility_contract` object with:
   "goal": "Build Full OS",
   "constraints": "2 people, 20 hours per week, no new headcount",
   "context": "B2B SaaS onboarding for enterprise clients",
+  "imageContext": {
+    "fileName": "onboarding-board.jpg",
+    "mimeType": "image/jpeg",
+    "dataUrl": "data:image/jpeg;base64,/9j/4AAQSk..."
+  },
   "allowAssumptions": true
 }
 ```
+
+`imageContext` is optional. Supported types: PNG, JPEG, WebP, GIF up to 2 MB.
 
 ### `POST /api/refine`
 

@@ -39,11 +39,14 @@
           From raw opportunity
           <span>to an execution-ready operating system</span>
         </h1>
-        <p class="hero-copy">
-          O2O diagnoses what kind of opportunity you have, selects the right pathway, and returns a consulting-grade
-          system card, workflow, pilot plan, controls, and next actions.
-          It delivers context-attached decision support, not blind prescriptions.
-        </p>
+        <article class="hero-heart" aria-label="Core O2O promise">
+          <p class="hero-heart-kicker">The Heart of O2O</p>
+          <p class="hero-copy">
+            O2O diagnoses what kind of opportunity you have, selects the right pathway, and returns a consulting-grade
+            system card, workflow, pilot plan, controls, and next actions.
+            It delivers context-attached decision support, not blind prescriptions.
+          </p>
+        </article>
         <p class="hero-plain">
           Describe what you want to build, fix, or improve. O2O turns it into workflows, roles, AI use cases, SOPs,
           pilot plans, metrics, and execution rhythm.
@@ -125,6 +128,18 @@
               class="context-area"
               placeholder="Team setup, tech stack, domain specifics, risks, deadlines"
             ></textarea>
+
+            <label for="imageInput">Reference image (optional)</label>
+            <div class="upload-row">
+              <input
+                id="imageInput"
+                class="image-input"
+                type="file"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+              />
+              <button id="clearImageBtn" class="upload-clear" type="button" hidden>Remove image</button>
+            </div>
+            <p id="imageMeta" class="upload-meta">No image attached.</p>
 
             <div class="action-row">
               <button id="buildBtn" class="primary-btn">Diagnose & Build System</button>

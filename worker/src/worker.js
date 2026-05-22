@@ -24,6 +24,8 @@ const OUTPUT_PATHWAYS = [
 ];
 
 const IMPACT_LABELS = ["HIGH", "MEDIUM", "LOW"];
+const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 
 const OUTPUT_SCHEMA = {
   name: "o2o_system_contract",
@@ -490,6 +492,7 @@ const SYSTEM_PROMPT = [
   "- Add practical SOP drafts with triggers and steps.",
   "- Include metrics that can be measured weekly.",
   "- Keep recommendations testable within 2-4 weeks where possible.",
+  "- If image context is attached, extract concrete observations from it and tie recommendations to those observations.",
   "- Use responsibility_contract to prove context attachment and non-prescriptive behavior."
 ].join("\n");
 
@@ -547,9 +550,19 @@ async function handleBuild(request, env) {
 
   const body = await safeJson(request);
   const userInput = cleanText(body.idea, 12000);
+  const imageContext = normalizeImageContext(body.imageContext);
 
   if (!userInput) {
     return corsJson(request, env, { ok: false, message: "Field idea is required." }, 400);
+  }
+
+  if (body.imageContext && !imageContext) {
+    return corsJson(
+      request,
+      env,
+      { ok: false, message: "imageContext must be a PNG/JPEG/WebP/GIF image up to 2 MB." },
+      400
+    );
   }
 
   const inputPayload = {
@@ -560,11 +573,19 @@ async function handleBuild(request, env) {
     goal: cleanText(body.goal, 120),
     constraints: cleanText(body.constraints, 3000),
     context: cleanText(body.context, 3000),
+    image_context: imageContext
+      ? {
+          file_name: imageContext.file_name,
+          mime_type: imageContext.mime_type,
+          estimated_bytes: imageContext.estimated_bytes,
+          purpose: "visual_context_for_diagnosis"
+        }
+      : null,
     allow_assumptions: body.allowAssumptions !== false,
     generated_at: new Date().toISOString()
   };
 
-  const generated = await callOpenAIForSystem(env, "build", inputPayload);
+  const generated = await callOpenAIForSystem(env, "build", inputPayload, { imageContext });
   const normalized = normalizeOutput(generated, {
     mode: "build",
     priorSystem: null,
@@ -617,23 +638,36 @@ async function handleRefine(request, env) {
   return corsJson(request, env, { ok: true, system: normalized });
 }
 
-async function callOpenAIForSystem(env, mode, payload) {
+async function callOpenAIForSystem(env, mode, payload, options = {}) {
   const model = env.OPENAI_MODEL || "gpt-4.1-mini";
+
+  const userTextPayload = {
+    mode,
+    payload,
+    contract: {
+      opportunity_types: OPPORTUNITY_TYPES,
+      clarity_levels: CLARITY_LEVELS,
+      output_pathways: OUTPUT_PATHWAYS,
+      labels: IMPACT_LABELS
+    }
+  };
+
+  const userContent = [{ type: "text", text: JSON.stringify(userTextPayload) }];
+
+  if (mode === "build" && options.imageContext && options.imageContext.data_url) {
+    userContent.push({
+      type: "image_url",
+      image_url: {
+        url: options.imageContext.data_url
+      }
+    });
+  }
 
   const messages = [
     { role: "system", content: SYSTEM_PROMPT },
     {
       role: "user",
-      content: JSON.stringify({
-        mode,
-        payload,
-        contract: {
-          opportunity_types: OPPORTUNITY_TYPES,
-          clarity_levels: CLARITY_LEVELS,
-          output_pathways: OUTPUT_PATHWAYS,
-          labels: IMPACT_LABELS
-        }
-      })
+      content: userContent
     }
   ];
 
@@ -903,6 +937,47 @@ function cleanText(value, limit) {
     return "";
   }
   return text.slice(0, limit);
+}
+
+function normalizeImageContext(value) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const mimeType = cleanText(value.mimeType, 60).toLowerCase();
+  const fileName = cleanText(value.fileName, 120) || "uploaded-image";
+  const dataUrl = String(value.dataUrl || "").trim();
+
+  if (!SUPPORTED_IMAGE_TYPES.includes(mimeType)) {
+    return null;
+  }
+
+  const prefix = `data:${mimeType};base64,`;
+  if (!dataUrl.startsWith(prefix)) {
+    return null;
+  }
+
+  const base64Data = dataUrl.slice(prefix.length).replace(/\s+/g, "");
+  if (!base64Data || /[^A-Za-z0-9+/=]/.test(base64Data)) {
+    return null;
+  }
+
+  const estimatedBytes = estimateBase64Bytes(base64Data);
+  if (!Number.isFinite(estimatedBytes) || estimatedBytes <= 0 || estimatedBytes > MAX_IMAGE_BYTES) {
+    return null;
+  }
+
+  return {
+    file_name: fileName,
+    mime_type: mimeType,
+    data_url: `${prefix}${base64Data}`,
+    estimated_bytes: estimatedBytes
+  };
+}
+
+function estimateBase64Bytes(base64Value) {
+  const padding = base64Value.endsWith("==") ? 2 : base64Value.endsWith("=") ? 1 : 0;
+  return Math.floor((base64Value.length * 3) / 4) - padding;
 }
 
 async function safeJson(request) {
