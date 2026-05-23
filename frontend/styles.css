@@ -3364,3 +3364,149 @@ main {
     font-size: 0.98rem;
   }
 }
+
+.glance-head,
+.why-head,
+.who-head,
+.scorecard-head,
+.interview-head,
+.plan-head,
+.next-head {
+  display: grid;
+  gap: 0.24rem;
+  margin-bottom: 0.74rem;
+}
+
+.glance-head h3,
+.why-head h3,
+.who-head h3,
+.scorecard-head h3,
+.interview-head h3,
+.plan-head h3,
+.next-head h3 {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.8vw, 1.34rem);
+  color: #17333c;
+  letter-spacing: -0.01em;
+}
+
+.glance-grid,
+.why-grid,
+.who-grid,
+.scorecard-grid,
+.interview-grid,
+.next-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.72rem;
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.72rem;
+}
+
+.glance-item,
+.why-item,
+.who-item,
+.scorecard-item,
+.interview-item,
+.next-item,
+.plan-week {
+  border: 1px solid rgba(13, 85, 92, 0.2);
+  border-radius: 12px;
+  padding: 0.78rem 0.86rem;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.97), rgba(243, 250, 251, 0.91));
+  min-width: 0;
+}
+
+.glance-label,
+.why-label,
+.who-label,
+.scorecard-label,
+.interview-label,
+.next-label {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #3f5d67;
+}
+
+.glance-value,
+.why-value,
+.who-value,
+.scorecard-desc,
+.interview-value,
+.next-value {
+  margin: 0.36rem 0 0;
+  line-height: 1.58;
+  color: #223b45;
+  overflow-wrap: anywhere;
+}
+
+.confidence-high {
+  color: #0e6a43;
+  font-weight: 700;
+}
+
+.confidence-medium {
+  color: #9a6500;
+  font-weight: 700;
+}
+
+.confidence-low {
+  color: #a82222;
+  font-weight: 700;
+}
+
+.scorecard-weight {
+  margin: 0.28rem 0 0;
+  font-size: 0.78rem;
+  color: #52707a;
+}
+
+.plan-week {
+  position: relative;
+  padding-top: 0.95rem;
+}
+
+.plan-index {
+  position: absolute;
+  top: -0.55rem;
+  left: 0.84rem;
+  width: 1.34rem;
+  height: 1.34rem;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0fa8b0;
+  color: #fff;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.plan-week h4 {
+  margin: 0;
+  color: #17333c;
+  font-size: 0.96rem;
+}
+
+.plan-week p {
+  margin: 0.44rem 0 0;
+  color: #223b45;
+  line-height: 1.55;
+}
+
+@media (max-width: 860px) {
+  .glance-grid,
+  .why-grid,
+  .who-grid,
+  .scorecard-grid,
+  .interview-grid,
+  .next-grid,
+  .plan-grid {
+    grid-template-columns: 1fr;
+  }
+}
