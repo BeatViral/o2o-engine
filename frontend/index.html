@@ -15,6 +15,17 @@
       rel="stylesheet"
     />
     <link rel="stylesheet" href="styles.css?v=diag-20260523f" />
+    <script>
+      (function enforceMainRecruiterUrl() {
+        var requiredVersion = "diag-20260523f";
+        var url = new URL(window.location.href);
+        if (url.searchParams.get("v") === requiredVersion) {
+          return;
+        }
+        url.searchParams.set("v", requiredVersion);
+        window.location.replace(url.toString());
+      })();
+    </script>
   </head>
   <body>
     <div class="atmosphere" aria-hidden="true">
