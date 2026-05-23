@@ -209,8 +209,18 @@ main,
 }
 
 .subscriber-menu-inline .subscriber-trigger {
-  width: 100%;
-  margin-top: 0.9rem;
+  margin-top: 0.65rem;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  padding: 0;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #0b6f77;
+  background: transparent;
+  justify-content: flex-start;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .subscriber-menu-inline .subscriber-panel {
@@ -570,7 +580,8 @@ main,
 .hero-metrics h2 {
   margin: 0;
   font-family: "Bricolage Grotesque", sans-serif;
-  font-size: 1.7rem;
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  line-height: 1.3;
 }
 
 .hero-metrics p {
@@ -957,7 +968,8 @@ textarea {
   font-family: "IBM Plex Mono", monospace;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #97eef3;
+  color: #0d5b63;
+  font-weight: 700;
   font-size: 0.75rem;
 }
 
@@ -966,6 +978,16 @@ textarea {
   margin: 0.35rem 0 0;
   font-family: "Bricolage Grotesque", sans-serif;
   font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+  color: #112f35;
+}
+
+.blind-spot-section .demo-kicker {
+  color: #0a4d55;
+}
+
+.video-panel .demo-kicker,
+.refinement-panel .demo-kicker {
+  color: #9ceef2;
 }
 
 .example-head h3 {
@@ -1123,6 +1145,48 @@ textarea {
 .case-bullets li {
   margin: 0.24rem 0;
   color: #2f4753;
+}
+
+.example-filled-list {
+  margin: 0.55rem 0 0;
+  padding-left: 1rem;
+  display: grid;
+  gap: 0.36rem;
+}
+
+.example-filled-list li {
+  color: #23404a;
+  line-height: 1.4;
+}
+
+.example-sample-block {
+  margin-top: 0.62rem;
+  border: 1px solid rgba(16, 103, 111, 0.2);
+  border-radius: 10px;
+  padding: 0.62rem;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.example-sample-block h6 {
+  margin: 0;
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0f6269;
+}
+
+.example-sample-block p,
+.example-sample-block ul {
+  margin: 0.42rem 0 0;
+}
+
+.example-sample-block ul {
+  padding-left: 1rem;
+}
+
+.example-sample-block li {
+  margin: 0.24rem 0;
+  color: #23404a;
 }
 
 .output-sequence {

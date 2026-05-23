@@ -808,15 +808,7 @@ function renderSubscriberMenu() {
   const limits = account && account.limits ? account.limits : null;
 
   if (elements.subscriberPlanBadge) {
-    if (authenticated && usage && Number.isFinite(Number(usage.limit)) && Number(usage.limit) > 0) {
-      elements.subscriberPlanBadge.textContent = `${account.plan_label || account.plan} ${usage.used}/${usage.limit}`;
-    } else if (authenticated) {
-      elements.subscriberPlanBadge.textContent = account.plan_label || account.plan || "Subscriber";
-    } else if (state.billingEnforced) {
-      elements.subscriberPlanBadge.textContent = "Activate Access";
-    } else {
-      elements.subscriberPlanBadge.textContent = "Open Access";
-    }
+    elements.subscriberPlanBadge.textContent = "Already have access? Sign in";
   }
 
   if (elements.subscriberStats) {
