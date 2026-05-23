@@ -1276,6 +1276,58 @@ function formatBuildTrack(pathway) {
   return value || "Build Core Hiring Steps";
 }
 
+function formatSearchType(value) {
+  const normalized = String(value || "").trim();
+
+  if (normalized === "Executive Search") {
+    return "Senior leadership role";
+  }
+
+  if (normalized === "High-Volume Hiring") {
+    return "Many similar hires";
+  }
+
+  if (normalized === "Hard-to-Fill Technical") {
+    return "Specialist technical role";
+  }
+
+  if (normalized === "Replacement Hire") {
+    return "Replacement role";
+  }
+
+  if (normalized === "Agency Client Intake") {
+    return "Client search brief";
+  }
+
+  if (normalized === "New Search Launch") {
+    return "New role search";
+  }
+
+  return normalized || "New role search";
+}
+
+function formatClarityLabel(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+
+  if (normalized === "clear") {
+    return "Clear";
+  }
+
+  if (normalized === "semi-clear") {
+    return "Partly clear";
+  }
+
+  if (normalized === "needs discovery") {
+    return "Needs more detail";
+  }
+
+  if (normalized === "vague") {
+    return "Very vague";
+  }
+
+  return String(value || "Needs more detail");
+}
+
 function renderLiveCardPreview() {
   if (!elements.liveCard) {
     return;
@@ -1307,7 +1359,7 @@ function renderLiveCardPreview() {
         </div>
         <div class="preview-row">
           <h4>Hiring Type</h4>
-          <p>Recruitment / Headhunting</p>
+          <p>Recruiter search</p>
         </div>
         <div class="preview-row">
           <h4>Company Stage</h4>
@@ -1336,7 +1388,7 @@ function renderLiveCardPreview() {
     <div class="preview-grid">
       <div class="preview-row">
         <h4>Hiring Type</h4>
-        <p>${escapeHtml(searchType)}</p>
+        <p>${escapeHtml(formatSearchType(searchType))}</p>
       </div>
       <div class="preview-row">
         <h4>Role Snapshot</h4>
@@ -1348,7 +1400,7 @@ function renderLiveCardPreview() {
       </div>
       <div class="preview-row">
         <h4>How Clear Is the Brief</h4>
-        <p>${escapeHtml(clarity)}</p>
+        <p>${escapeHtml(formatClarityLabel(clarity))}</p>
       </div>
       <div class="preview-row">
         <h4>Plan Mode</h4>
@@ -1388,7 +1440,7 @@ function renderSystem(system) {
         <div class="risk-scan-head">
           <p class="diagnosis-kicker">Quick Risk Check</p>
           <h3>Check Risk Before You Search</h3>
-          <p class="risk-scan-note">This scorecard shows where the brief is likely to fail.</p>
+          <p class="risk-scan-note">This shows where the brief could fail.</p>
         </div>
         <div class="risk-metric-grid">
           ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
@@ -1397,7 +1449,7 @@ function renderSystem(system) {
         </div>
         <div class="risk-level-row">
           <div>
-            <p class="risk-label">Chance Of Hiring Miss</p>
+            <p class="risk-label">Risk Of Wrong Hire</p>
             <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
           </div>
           <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
@@ -1408,7 +1460,7 @@ function renderSystem(system) {
         <div class="diagnosis-head">
           <p class="diagnosis-kicker">Blind Spot Analysis</p>
           <h3>Blind Spot Diagnosis: Fix These First</h3>
-          <p class="panel-note">These are the gaps that can waste weeks if not fixed now.</p>
+          <p class="panel-note">Fix these issues first so you do not waste weeks searching.</p>
         </div>
         <div class="diagnosis-need-grid">
           <article class="diagnosis-need-card">
@@ -1421,15 +1473,15 @@ function renderSystem(system) {
           </article>
         </div>
         <div class="diagnosis-list-grid">
-          ${renderDiagnosticListCard("&#129513;", "Blind-Spot Assumptions", blindSpots.false_assumptions, "assumptions")}
-          ${renderDiagnosticListCard("&#9888;&#65039;", "Blind-Spot Failure Modes", blindSpots.hidden_failure_modes, "failure-modes")}
-          ${renderDiagnosticListCard("&#128269;", "Wrong-Candidate Risks", blindSpots.wrong_candidate_risks, "candidate-risks")}
+          ${renderDiagnosticListCard("&#129513;", "Wrong Assumptions", blindSpots.false_assumptions, "assumptions")}
+          ${renderDiagnosticListCard("&#9888;&#65039;", "How This Hire Could Fail", blindSpots.hidden_failure_modes, "failure-modes")}
+          ${renderDiagnosticListCard("&#128269;", "Risk Of Hiring The Wrong Person", blindSpots.wrong_candidate_risks, "candidate-risks")}
           ${renderDiagnosticListCard("&#128201;", "Pay Or Level Mismatch", blindSpots.compensation_or_level_mismatch, "mismatch")}
           ${renderDiagnosticListCard("&#10071;", "Missing Success Targets", blindSpots.missing_success_definition, "missing")}
         </div>
-        ${renderDiagnosticTextCard("What Strong Passive Candidates Will Expect", blindSpots.passive_candidate_reality)}
+        ${renderDiagnosticTextCard("What Good Candidates Will Expect", blindSpots.passive_candidate_reality)}
         <article class="corrected-thesis-card slide-in-thesis">
-          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>Blind-Spot Corrected Direction</h4>
+          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>What To Hire For Instead</h4>
           <p>${escapeHtml(blindSpots.corrected_search_thesis || "No hiring direction provided.")}</p>
         </article>
       </section>
@@ -1440,11 +1492,11 @@ function renderSystem(system) {
 
       <div class="module-card-grid">
         <article class="panel module-card">
-          <h3>Brief Snapshot</h3>
+          <h3>At A Glance</h3>
           <div class="kv-grid compact">
-            <div class="kv"><strong>Hiring Type</strong><span>${escapeHtml(card.opportunity_type || "New Search")}</span></div>
-            <div class="kv"><strong>Brief Clarity</strong><span>${escapeHtml(card.clarity_level || "Needs work")}</span></div>
-            <div class="kv"><strong>Plan Mode</strong><span>${escapeHtml(formatBuildTrack(card.output_pathway))}</span></div>
+            <div class="kv"><strong>Role Type</strong><span>${escapeHtml(formatSearchType(card.opportunity_type || ""))}</span></div>
+            <div class="kv"><strong>Brief Clarity</strong><span>${escapeHtml(formatClarityLabel(card.clarity_level || ""))}</span></div>
+            <div class="kv"><strong>Output Plan</strong><span>${escapeHtml(formatBuildTrack(card.output_pathway))}</span></div>
             <div class="kv"><strong>Confidence</strong><span>${renderBadge(card.confidence_level)}</span></div>
             <div class="kv"><strong>Revision</strong><span>${escapeHtml(String(version.revision || "1"))}</span></div>
             <div class="kv"><strong>Generated</strong><span>${escapeHtml(generatedAt)}</span></div>
@@ -1458,7 +1510,7 @@ function renderSystem(system) {
         </article>
 
         <article class="panel module-card">
-          <h3>Why O2O Said This</h3>
+          <h3>Why O2O Gave This Result</h3>
           <h4>Summary</h4>
           <p>${escapeHtml(system.executive_summary || "No executive summary available.")}</p>
           <h4>Brief Diagnosis</h4>
@@ -1474,16 +1526,16 @@ function renderSystem(system) {
         </article>
 
         <article class="panel module-card">
-          <h3>Ideal Candidate Profile</h3>
-          <h4>Candidate Persona</h4>
+          <h3>Who To Hire</h3>
+          <h4>Best-Fit Profile</h4>
           <p>${escapeHtml(recruitment.candidate_persona || "No candidate persona provided.")}</p>
-          <h4>What Success Looks Like</h4>
+          <h4>What This Person Must Do Well</h4>
           <p>${escapeHtml(recruitment.hidden_success_profile || "No hidden success profile provided.")}</p>
         </article>
 
         <article class="panel module-card boolean-module">
           <h3>Search Strings You Can Copy</h3>
-          <p class="module-note">Copy these directly into LinkedIn, ATS, or other sourcing tools.</p>
+          <p class="module-note">Copy these directly into your search tools.</p>
           ${renderBooleanStringBlocks(recruitment.boolean_search_strings)}
         </article>
 
@@ -1508,10 +1560,10 @@ function renderSystem(system) {
         </article>
 
         <article class="panel module-card">
-          <h3>Open Questions + Next Steps</h3>
+          <h3>Questions + Next Steps</h3>
           <div class="kv-grid compact">
-            <div class="kv"><strong>Needs Clarification</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
-            <div class="kv"><strong>Used Assumptions</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
+            <div class="kv"><strong>Needs More Info</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
+            <div class="kv"><strong>Used Best-Guess Inputs</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
           </div>
           <h4>Questions To Ask</h4>
           ${renderModuleList(clarification.questions)}
