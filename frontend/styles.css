@@ -2414,6 +2414,21 @@ textarea {
   color: #2a4c54;
 }
 
+.corrected-search-thesis-panel .blindspot-report-lead,
+.corrected-search-thesis-panel .thesis-statement,
+.corrected-search-thesis-panel .diagnosis-contrast-value,
+.blindspot-report-panel .risk-field-label,
+.blindspot-report-panel .risk-field-value,
+.blindspot-report-panel .risk-card-head h4 {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.blindspot-report-panel {
+  padding-bottom: 1.24rem;
+}
+
 .module-card p {
   margin: 0.32rem 0 0;
   color: #1f3d46;
@@ -2977,7 +2992,8 @@ main {
   border-radius: 18px;
   box-shadow: 0 18px 34px rgba(67, 36, 18, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.68) inset;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
+  padding: 1.06rem 1.14rem 1.26rem;
 }
 
 .corrected-search-thesis-panel::before {
