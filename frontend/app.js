@@ -1406,8 +1406,8 @@ function renderSystem(system) {
 
       <section class="panel blindspot-diagnosis-panel fade-in-diagnosis">
         <div class="diagnosis-head">
-          <p class="diagnosis-kicker">What Is Wrong In The Brief</p>
-          <h3>Hidden Risks You Should Fix First</h3>
+          <p class="diagnosis-kicker">Blind Spot Analysis</p>
+          <h3>Blind Spot Diagnosis: Fix These First</h3>
           <p class="panel-note">These are the gaps that can waste weeks if not fixed now.</p>
         </div>
         <div class="diagnosis-need-grid">
@@ -1421,15 +1421,15 @@ function renderSystem(system) {
           </article>
         </div>
         <div class="diagnosis-list-grid">
-          ${renderDiagnosticListCard("&#129513;", "Assumptions That May Be Wrong", blindSpots.false_assumptions, "assumptions")}
-          ${renderDiagnosticListCard("&#9888;&#65039;", "How This Hire Can Fail", blindSpots.hidden_failure_modes, "failure-modes")}
-          ${renderDiagnosticListCard("&#128269;", "Risk Of Hiring The Wrong Profile", blindSpots.wrong_candidate_risks, "candidate-risks")}
+          ${renderDiagnosticListCard("&#129513;", "Blind-Spot Assumptions", blindSpots.false_assumptions, "assumptions")}
+          ${renderDiagnosticListCard("&#9888;&#65039;", "Blind-Spot Failure Modes", blindSpots.hidden_failure_modes, "failure-modes")}
+          ${renderDiagnosticListCard("&#128269;", "Wrong-Candidate Risks", blindSpots.wrong_candidate_risks, "candidate-risks")}
           ${renderDiagnosticListCard("&#128201;", "Pay Or Level Mismatch", blindSpots.compensation_or_level_mismatch, "mismatch")}
           ${renderDiagnosticListCard("&#10071;", "Missing Success Targets", blindSpots.missing_success_definition, "missing")}
         </div>
         ${renderDiagnosticTextCard("What Strong Passive Candidates Will Expect", blindSpots.passive_candidate_reality)}
         <article class="corrected-thesis-card slide-in-thesis">
-          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>Better Hiring Direction</h4>
+          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>Blind-Spot Corrected Direction</h4>
           <p>${escapeHtml(blindSpots.corrected_search_thesis || "No hiring direction provided.")}</p>
         </article>
       </section>
