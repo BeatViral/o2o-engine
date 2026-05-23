@@ -14,7 +14,7 @@
       href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700;800&family=IBM+Plex+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css?v=plain-20260523b" />
+    <link rel="stylesheet" href="styles.css?v=plain-20260523c" />
   </head>
   <body>
     <div class="atmosphere" aria-hidden="true">
@@ -38,7 +38,7 @@
       <section class="hero reveal">
         <p class="eyebrow">O2O Recruitment Engine&trade;</p>
         <h1>Paste your brief. Get a clear hiring plan.</h1>
-        <p class="hero-subline">O2O shows what is missing, warns you about hiring risk, and gives you a step-by-step plan.</p>
+        <p class="hero-subline">Paste one job brief. O2O spots hiring risks, defines the target profile, and gives you a search plan recruiters can run.</p>
         <article class="hero-intel-note" aria-label="Intelligence difference">
           <p>Most briefs are too vague. O2O tells you what to fix before you start searching.</p>
         </article>
@@ -65,7 +65,7 @@
                 <h5>O2O Output</h5>
                 <p class="case-question">"This brief may hire the wrong person. You likely need someone who can handle longer sales cycles and keep a clean pipeline."</p>
                 <p class="blindspot-highlight">Blind spot found: this brief rewards fast closing, but this role needs strong process habits.</p>
-                <p class="case-question"><strong>What O2O gives you:</strong></p>
+                <p class="case-question"><strong>O2O then builds:</strong></p>
                 <ul class="example-filled-list">
                   <li>Blind-spot diagnosis</li>
                   <li>Clear candidate profile</li>
@@ -83,7 +83,7 @@
       <section class="builds-section reveal-delay-2" aria-label="What you get in one run">
         <div class="pricing-head">
           <p class="demo-kicker">What You Get</p>
-          <h3>Everything you need to run a focused search.</h3>
+          <h3>A complete search pack from one brief.</h3>
         </div>
         <article class="panel builds-panel">
           <ul class="builds-list">
@@ -135,13 +135,15 @@
 
             <div class="action-row">
               <button id="buildBtn" class="primary-btn">Run Diagnosis</button>
+              <button id="demoRecruitmentBtn" class="upload-clear" type="button">View Sample Output</button>
               <button id="retryBtn" class="upload-clear" type="button" hidden>Retry last action</button>
-              <span id="status" class="status">Ready</span>
+              <span id="status" class="status" hidden aria-live="polite">Ready</span>
             </div>
           </article>
         </div>
       </section>
 
+      <!-- Rich diagnostic output (risk scan, blind-spot diagnosis, thesis card, and timeline) is rendered dynamically by app.js. -->
       <section id="outputSection" class="output" hidden>
         <div id="output" hidden></div>
         <div id="exportRow" class="export-row" hidden>
@@ -186,7 +188,7 @@
       <p>From idea to operating system.</p>
     </footer>
 
-    <script src="env.js?v=plain-20260523b"></script>
-    <script src="app.js?v=plain-20260523b"></script>
+    <script src="env.js?v=plain-20260523c"></script>
+    <script src="app.js?v=plain-20260523c"></script>
   </body>
 </html>

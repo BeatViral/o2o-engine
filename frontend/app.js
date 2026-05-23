@@ -231,7 +231,7 @@ async function checkApiHealth() {
   const apiBase = resolveApiBase();
 
   if (!apiBase) {
-    setStatus("Set apiBase in env.js", "warning");
+    setStatus("Live API is not connected. Use View Sample Output to preview the diagnosis UI.", "warning");
     return;
   }
 
@@ -241,9 +241,9 @@ async function checkApiHealth() {
       throw new Error(`Health check failed (${response.status})`);
     }
 
-    setStatus("API connected", "success");
+    setStatus("Live diagnosis API connected", "success");
   } catch (error) {
-    setStatus(error.message || "API not reachable", "error");
+    setStatus(error.message || "Live API is not reachable right now", "error");
   }
 }
 
@@ -992,13 +992,13 @@ function collectRecruiterInputs(options = {}) {
 
 function runRecruitmentDemo() {
   const demoJobAd = [
-    "We are hiring a Senior Account Executive for a B2B SaaS company.",
-    "Need 5+ years, strong closer, base $120k.",
-    "Need someone fast."
+    "We need a Senior Account Executive for B2B SaaS.",
+    "Need 5+ years and a strong closer.",
+    "Base $120k and we need this hire fast."
   ].join("\n");
 
   if (elements.ideaInput) {
-    elements.ideaInput.value = `${demoJobAd}\n\nQuestion: Identify hidden hiring failure modes, correct the search thesis, then build a concrete 21-day recruitment operating system.`;
+    elements.ideaInput.value = demoJobAd;
   }
   if (elements.roleTitleInput) {
     elements.roleTitleInput.value = "Senior Account Executive";
@@ -1013,18 +1013,167 @@ function runRecruitmentDemo() {
     elements.companyStageInput.value = "Series A-B";
   }
   if (elements.hiringChallengeInput) {
-    elements.hiringChallengeInput.value = "Role attracts closers but misses enterprise-cycle discipline";
+    elements.hiringChallengeInput.value = "Many applicants look good at first but fail in long sales cycles.";
   }
   if (elements.contextInput) {
-    elements.contextInput.value = "Recruitment focus: surface blind spots first, then build copy-paste-ready execution artifacts for a serious recruiter.";
+    elements.contextInput.value = "Focus on blind spots first, then build a practical hiring plan.";
   }
 
   renderLiveCardPreview();
-  handleBuild({
-    demoMode: true,
-    verticalFocus: "Recruitment / Headhunting",
-    title: "Senior AE Blind Spot Diagnosis Demo"
-  });
+  showSampleDiagnosisOutput();
+}
+
+function showSampleDiagnosisOutput() {
+  const sampleSystem = buildRecruitmentSampleSystem();
+
+  state.currentSystem = sampleSystem;
+  state.currentSystemId = "";
+  state.currentVersionNumber = Number(sampleSystem.version && sampleSystem.version.revision) || 1;
+
+  renderSystem(sampleSystem);
+  setOutputEmptyState(false);
+
+  if (elements.exportRow) {
+    elements.exportRow.hidden = true;
+  }
+
+  clearRetryAction();
+  setStatus("Showing sample diagnostic output", "success");
+}
+
+function buildRecruitmentSampleSystem() {
+  return {
+    executive_summary:
+      "The brief asks for a strong closer, but the real risk is hiring someone who closes fast yet fails in a longer sales cycle.",
+    system_card: {
+      opportunity_type: "Agency Client Intake",
+      clarity_level: "Vague",
+      output_pathway: "Full Operating System",
+      confidence_level: "MEDIUM",
+      key_assumptions: [
+        "The role is enterprise-leaning, not short-cycle only.",
+        "Process discipline matters more than closing style."
+      ],
+      missing_information: [
+        "Clear first-90-day success targets.",
+        "Expected deal cycle length and average deal size."
+      ],
+      recommended_next_step: "Align on success targets, then run Week 1 sourcing with the corrected profile."
+    },
+    diagnosis: {
+      opportunity_type_rationale: "The role signals a client-side enterprise search, not a generic closer hire.",
+      clarity_rationale: "The brief has title and pay but not clear success targets.",
+      pathway_rationale: "A full plan is needed because sourcing, screening, and interviews all need calibration.",
+      confidence_rationale: "Confidence is medium because key targets are still missing."
+    },
+    clarification: {
+      needs_clarification: true,
+      assumption_based_draft_used: true,
+      questions: ["What specific outcomes define a strong first 90 days?"]
+    },
+    known_assumed_unknown: {
+      known: ["Senior AE role", "B2B SaaS context"],
+      assumed: ["Longer sales cycle with multiple stakeholders"],
+      unknown: ["Quota split and stage conversion targets"]
+    },
+    next_actions: [
+      "Run a 20-minute hiring manager calibration call.",
+      "Lock final scorecard before outreach starts."
+    ],
+    grounding_notes: ["Use this sample to review UI and flow. Build live output when API is connected."],
+    version: {
+      revision: 1,
+      generated_at: new Date().toISOString()
+    },
+    recruitment_operating_system: {
+      job_ad_diagnosis:
+        "The brief rewards speed and charisma but under-specifies process discipline, pipeline quality, and complex buying-cycle behavior.",
+      candidate_persona:
+        "Enterprise-capable AE who keeps clean pipeline data, manages multi-step deals, and works systematically.",
+      hidden_success_profile:
+        "Consistent forecast quality, disciplined CRM use, and patience through long buying cycles.",
+      boolean_search_strings: [
+        '("account executive" OR "enterprise ae") AND ("pipeline discipline" OR "crm hygiene") AND (saas)',
+        '("b2b saas" AND "enterprise sales" AND (forecasting OR "multi-stakeholder"))'
+      ],
+      screening_rubric: [
+        {
+          category: "Pipeline discipline",
+          weight: "30%",
+          what_to_look_for: "Evidence of consistent stage hygiene and accurate forecasting."
+        },
+        {
+          category: "Cycle management",
+          weight: "25%",
+          what_to_look_for: "Track record in longer, multi-step deal cycles."
+        },
+        {
+          category: "Stakeholder navigation",
+          weight: "20%",
+          what_to_look_for: "Can manage multiple decision makers without losing deal momentum."
+        }
+      ],
+      interview_questions: {
+        technical: [
+          "How do you structure your weekly pipeline review?",
+          "What signals tell you a deal is healthy vs. at risk?"
+        ],
+        behavioral: [
+          "Tell us about a deal that looked strong but failed. What did you learn?",
+          "Describe how you recovered from a weak month."
+        ],
+        execution: [
+          "Walk through your process from first call to close in a long cycle.",
+          "How do you keep CRM data accurate under pressure?"
+        ],
+        stakeholder: [
+          "How do you map and influence multiple stakeholders in one deal?",
+          "How do you keep decision makers aligned over time?"
+        ]
+      },
+      outreach_message:
+        "Your experience in longer B2B cycles and disciplined pipeline management aligns with what this role actually needs.",
+      search_sprint_21_day_plan: {
+        week1: [
+          "Confirm final profile and success targets with hiring manager.",
+          "Launch first sourcing wave with corrected search strings."
+        ],
+        week2: [
+          "Screen candidates against scorecard, not gut feel.",
+          "Adjust targeting based on early interview signal quality."
+        ],
+        week3: [
+          "Run calibrated interviews with clear pass/fail notes.",
+          "Deliver shortlist with risk notes and recommendation."
+        ]
+      },
+      blind_spot_diagnosis: {
+        stated_need: "Need a strong closer quickly.",
+        likely_real_need: "Need someone who can run disciplined longer-cycle selling.",
+        false_assumptions: [
+          "Fast closer equals long-cycle success.",
+          "Years of experience alone predicts quality."
+        ],
+        hidden_failure_modes: [
+          "Candidate closes early deals but cannot sustain longer-cycle pipeline.",
+          "Poor CRM discipline creates false confidence in forecasting."
+        ],
+        wrong_candidate_risks: [
+          "Over-index on confidence and under-index on process discipline.",
+          "Hire a short-cycle profile for a long-cycle role."
+        ],
+        missing_success_definition: [
+          "No first-90-day operating targets.",
+          "No clear conversion and forecast quality expectations."
+        ],
+        compensation_or_level_mismatch: ["Pay may attract mid-market closers, not enterprise-ready operators."],
+        passive_candidate_reality:
+          "Top candidates are often passive and will only engage when role scope and success targets are concrete.",
+        corrected_search_thesis:
+          "Prioritize pipeline discipline, CRM hygiene, and long-cycle execution over pure close-speed signal."
+      }
+    }
+  };
 }
 
 function setRetryAction(action, label) {
@@ -1254,6 +1403,11 @@ function slugifyTitle(value) {
 }
 
 function setStatus(text, tone) {
+  if (!elements.status) {
+    return;
+  }
+
+  elements.status.hidden = false;
   elements.status.textContent = text;
   elements.status.dataset.tone = tone;
 }
