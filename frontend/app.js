@@ -23,6 +23,7 @@ const elements = {
   subscriberUsageText: document.getElementById("subscriberUsageText"),
   subscriberResetText: document.getElementById("subscriberResetText"),
   subscriberImageLimitText: document.getElementById("subscriberImageLimitText"),
+  subscriberLinks: document.getElementById("subscriberLinks"),
   manageBillingLink: document.getElementById("manageBillingLink"),
   upgradePlanLink: document.getElementById("upgradePlanLink"),
   signOutBtn: document.getElementById("signOutBtn"),
@@ -823,6 +824,10 @@ function renderSubscriberMenu() {
     elements.signOutBtn.hidden = !authenticated;
   }
 
+  if (elements.subscriberLinks) {
+    elements.subscriberLinks.hidden = !authenticated;
+  }
+
   if (elements.subscriberPlanName) {
     elements.subscriberPlanName.textContent = authenticated ? account.plan_label || account.plan || "Subscriber" : "Not active";
   }
@@ -871,7 +876,7 @@ function renderSubscriberMenu() {
 
   const manageBillingUrl = authenticated ? String(account.billing_portal_url || "") : "";
   if (elements.manageBillingLink) {
-    elements.manageBillingLink.hidden = !manageBillingUrl;
+    elements.manageBillingLink.hidden = !(authenticated && manageBillingUrl);
     if (manageBillingUrl) {
       elements.manageBillingLink.href = manageBillingUrl;
     }
@@ -879,18 +884,16 @@ function renderSubscriberMenu() {
 
   const upgradeUrl = resolveUpgradeUrl(account ? account.plan : "starter", account ? account.upgrade_url : "");
   if (elements.upgradePlanLink) {
-    elements.upgradePlanLink.hidden = !upgradeUrl;
+    elements.upgradePlanLink.hidden = !(authenticated && upgradeUrl);
     if (upgradeUrl) {
       elements.upgradePlanLink.href = upgradeUrl;
     }
   }
 
-  if (!authenticated) {
-    if (state.billingEnforced) {
-      setSubscriberMessage("Access code required. Billing controls are active on this workspace.");
-    } else {
-      setSubscriberMessage("Billing enforcement is off. You can still activate a code to track plan usage.");
-    }
+  if (authenticated) {
+    setSubscriberMessage("Access active. Your plan and usage details are now available.");
+  } else {
+    setSubscriberMessage("Enter your access code to unlock your recruiter workspace.");
   }
 
   updateImageMeta();
