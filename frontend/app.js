@@ -8,6 +8,8 @@ const elements = {
   imageInput: document.getElementById("imageInput"),
   imageMeta: document.getElementById("imageMeta"),
   clearImageBtn: document.getElementById("clearImageBtn"),
+  demoRecruitmentBtn: document.getElementById("demoRecruitmentBtn"),
+  retryBtn: document.getElementById("retryBtn"),
   subscriberMenu: document.getElementById("subscriberMenu"),
   subscriberPlanBadge: document.getElementById("subscriberPlanBadge"),
   subscriberMessage: document.getElementById("subscriberMessage"),
@@ -30,6 +32,10 @@ const elements = {
   status: document.getElementById("status"),
   liveCard: document.getElementById("liveCard"),
   demoVideoSlot: document.getElementById("demoVideoSlot"),
+  outputEmptyState: document.getElementById("outputEmptyState"),
+  exportRow: document.getElementById("exportRow"),
+  copyMarkdownBtn: document.getElementById("copyMarkdownBtn"),
+  downloadPdfBtn: document.getElementById("downloadPdfBtn"),
   output: document.getElementById("output"),
   outputSection: document.getElementById("outputSection")
 };
@@ -37,20 +43,27 @@ const elements = {
 const SUPPORTED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"]);
 const DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const ACCESS_TOKEN_STORAGE_KEY = "o2o_access_token";
+const USER_ID_STORAGE_KEY = "o2o_user_id";
 
 const state = {
   currentSystem: null,
+  currentSystemId: "",
+  currentVersionNumber: 0,
   busy: false,
   imageContext: null,
   authToken: "",
   account: null,
-  billingEnforced: false
+  billingEnforced: false,
+  userId: "",
+  retryAction: null,
+  lastBuildOptions: null
 };
 
 initialize();
 
 function initialize() {
   state.authToken = readStoredAccessToken();
+  state.userId = readOrCreateUserId();
 
   const previewTargets = [
     elements.ideaInput,
@@ -68,11 +81,19 @@ function initialize() {
   });
 
   if (elements.buildBtn) {
-    elements.buildBtn.addEventListener("click", handleBuild);
+    elements.buildBtn.addEventListener("click", () => handleBuild());
+  }
+
+  if (elements.demoRecruitmentBtn) {
+    elements.demoRecruitmentBtn.addEventListener("click", runRecruitmentDemo);
+  }
+
+  if (elements.retryBtn) {
+    elements.retryBtn.addEventListener("click", retryLastAction);
   }
 
   if (elements.refineBtn) {
-    elements.refineBtn.addEventListener("click", handleRefine);
+    elements.refineBtn.addEventListener("click", () => handleRefine());
   }
 
   if (elements.imageInput) {
@@ -126,8 +147,17 @@ function initialize() {
     });
   }
 
+  if (elements.copyMarkdownBtn) {
+    elements.copyMarkdownBtn.addEventListener("click", copyCurrentSystemMarkdown);
+  }
+
+  if (elements.downloadPdfBtn) {
+    elements.downloadPdfBtn.addEventListener("click", downloadCurrentSystemPdf);
+  }
+
   renderLiveCardPreview();
   renderDemoVideoSlot();
+  setOutputEmptyState(true);
   renderSubscriberMenu();
   checkApiHealth();
   refreshAccount();
@@ -162,7 +192,7 @@ function renderDemoVideoSlot() {
     <div class="video-placeholder">
       <h4>30-second demo slot ready</h4>
       <p>Set demoVideoUrl in env.js with your Loom share link.</p>
-      <p>Recommended recording flow: messy input -> diagnosis -> routing -> system generation -> iteration.</p>
+      <p>Recommended recording flow: weak role brief -> blind-spot diagnosis -> corrected search thesis -> recruitment OS build.</p>
     </div>
   `;
 }
@@ -204,16 +234,21 @@ async function checkApiHealth() {
   }
 }
 
-async function handleBuild() {
-  const idea = String(elements.ideaInput.value || "").trim();
+async function handleBuild(options = {}) {
+  const idea = String(options.ideaOverride || elements.ideaInput.value || "").trim();
   if (!idea) {
     setStatus("Describe the opportunity first", "warning");
     elements.ideaInput.focus();
     return;
   }
 
+  state.lastBuildOptions = options;
+
   const payload = {
     idea,
+    title: String(options.title || "").trim(),
+    verticalFocus: String(options.verticalFocus || "Recruitment / Headhunting").trim(),
+    demoMode: Boolean(options.demoMode),
     opportunityTypeHint: elements.opportunityType.value,
     stage: elements.stage.value,
     goal: elements.goal.value,
@@ -238,14 +273,19 @@ async function handleBuild() {
     }
 
     syncAccountFromResponse(data);
+    clearRetryAction();
     state.currentSystem = data.system;
+    state.currentSystemId = String(data.system_id || data.system?.version?.system_id || "").trim();
+    state.currentVersionNumber = Number(data.version_number || data.system?.version?.revision || 0);
     renderSystem(data.system);
+    setOutputEmptyState(false);
     setStatus(
       `Built ${data.system.system_card.output_pathway} (confidence ${data.system.system_card.confidence_level})`,
       "success"
     );
   } catch (error) {
     maybeOpenSubscriberMenu(error);
+    setRetryAction({ type: "build" }, "Retry build");
     setStatus(error.message || "Build failed", "error");
   } finally {
     setBusy(false, "Idle");
@@ -258,6 +298,11 @@ async function handleRefine() {
     return;
   }
 
+  if (!state.currentSystemId || !state.currentVersionNumber) {
+    setStatus("Missing system metadata. Build again before refining.", "error");
+    return;
+  }
+
   const command = String(elements.refineCommand.value || "").trim();
   if (!command) {
     setStatus("Type or select a refinement command", "warning");
@@ -267,9 +312,10 @@ async function handleRefine() {
   try {
     setBusy(true, "Refining current system");
     const data = await postJson("/api/refine", {
+      systemId: state.currentSystemId,
+      versionNumber: state.currentVersionNumber,
       command,
-      userDeltaContext: String(elements.contextInput.value || "").trim(),
-      currentSystem: state.currentSystem
+      userDeltaContext: String(elements.contextInput.value || "").trim()
     });
 
     if (!data.ok || !data.system) {
@@ -277,12 +323,25 @@ async function handleRefine() {
     }
 
     syncAccountFromResponse(data);
+    clearRetryAction();
     state.currentSystem = data.system;
+    state.currentSystemId = String(data.system_id || data.system?.version?.system_id || state.currentSystemId).trim();
+    state.currentVersionNumber = Number(data.version_number || data.system?.version?.revision || state.currentVersionNumber);
     renderSystem(data.system);
-    setStatus(`Updated to revision ${data.system.version.revision}`, "success");
+    setOutputEmptyState(false);
+    setStatus(`Updated to revision ${data.version_number || data.system.version.revision}`, "success");
   } catch (error) {
     maybeOpenSubscriberMenu(error);
-    setStatus(error.message || "Refine failed", "error");
+    if (Number(error && error.status) === 409) {
+      const latest = Number(error && error.data && error.data.latest_version_number);
+      if (Number.isFinite(latest) && latest > 0) {
+        state.currentVersionNumber = latest;
+      }
+      setStatus("Version conflict detected. Reload the latest system before retrying.", "error");
+    } else {
+      setStatus(error.message || "Refine failed", "error");
+    }
+    setRetryAction({ type: "refine" }, "Retry refine");
   } finally {
     setBusy(false, "Idle");
   }
@@ -298,6 +357,10 @@ async function postJson(path, payload, options = {}) {
   const headers = {
     "Content-Type": "application/json"
   };
+
+  if (state.userId) {
+    headers["x-o2o-user-id"] = state.userId;
+  }
 
   if (includeAuth && state.authToken) {
     headers.Authorization = `Bearer ${state.authToken}`;
@@ -330,6 +393,11 @@ async function postJson(path, payload, options = {}) {
     throw error;
   }
 
+  if (data && typeof data.user_id === "string" && data.user_id.trim()) {
+    state.userId = data.user_id.trim();
+    writeStoredUserId(state.userId);
+  }
+
   return data;
 }
 
@@ -341,6 +409,9 @@ async function getJson(path, options = {}) {
 
   const includeAuth = options.includeAuth !== false;
   const headers = {};
+  if (state.userId) {
+    headers["x-o2o-user-id"] = state.userId;
+  }
   if (includeAuth && state.authToken) {
     headers.Authorization = `Bearer ${state.authToken}`;
   }
@@ -362,6 +433,11 @@ async function getJson(path, options = {}) {
     error.status = response.status;
     error.data = data;
     throw error;
+  }
+
+  if (data && typeof data.user_id === "string" && data.user_id.trim()) {
+    state.userId = data.user_id.trim();
+    writeStoredUserId(state.userId);
   }
 
   return data;
@@ -387,6 +463,9 @@ function resolveApiBase() {
 function setBusy(isBusy, statusText) {
   state.busy = isBusy;
   elements.buildBtn.disabled = isBusy;
+  if (elements.demoRecruitmentBtn) {
+    elements.demoRecruitmentBtn.disabled = isBusy;
+  }
   elements.refineBtn.disabled = isBusy;
   if (elements.imageInput) {
     elements.imageInput.disabled = isBusy;
@@ -399,6 +478,15 @@ function setBusy(isBusy, statusText) {
   }
   if (elements.accessCodeInput) {
     elements.accessCodeInput.disabled = isBusy;
+  }
+  if (elements.retryBtn) {
+    elements.retryBtn.disabled = isBusy;
+  }
+  if (elements.copyMarkdownBtn) {
+    elements.copyMarkdownBtn.disabled = isBusy;
+  }
+  if (elements.downloadPdfBtn) {
+    elements.downloadPdfBtn.disabled = isBusy;
   }
   if (statusText) {
     setStatus(statusText, isBusy ? "loading" : "neutral");
@@ -522,6 +610,11 @@ function syncAccountFromResponse(data) {
     return;
   }
 
+  if (typeof data.user_id === "string" && data.user_id.trim()) {
+    state.userId = data.user_id.trim();
+    writeStoredUserId(state.userId);
+  }
+
   if (typeof data.billing_enforced === "boolean") {
     state.billingEnforced = data.billing_enforced;
   }
@@ -582,6 +675,38 @@ function clearStoredAccessToken() {
   } catch {
     // Ignore storage failures.
   }
+}
+
+function readOrCreateUserId() {
+  try {
+    const existing = String(window.localStorage.getItem(USER_ID_STORAGE_KEY) || "").trim();
+    if (existing) {
+      return existing;
+    }
+
+    const generated = createAnonymousUserId();
+    window.localStorage.setItem(USER_ID_STORAGE_KEY, generated);
+    return generated;
+  } catch {
+    return createAnonymousUserId();
+  }
+}
+
+function writeStoredUserId(userId) {
+  try {
+    window.localStorage.setItem(USER_ID_STORAGE_KEY, String(userId || ""));
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function createAnonymousUserId() {
+  if (window.crypto && typeof window.crypto.randomUUID === "function") {
+    return `anon-${window.crypto.randomUUID()}`;
+  }
+
+  const seed = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  return `anon-${seed}`;
 }
 
 async function refreshAccount() {
@@ -801,6 +926,229 @@ function formatResetDate(isoText) {
   });
 }
 
+function runRecruitmentDemo() {
+  const demoJobAd = [
+    "We are hiring a Senior Account Executive for a B2B SaaS company.",
+    "Need 5+ years, strong closer, base $120k.",
+    "Need someone fast."
+  ].join("\n");
+
+  if (elements.ideaInput) {
+    elements.ideaInput.value = `${demoJobAd}\n\nQuestion: Identify hidden hiring failure modes, correct the search thesis, then build a concrete 21-day recruitment operating system.`;
+  }
+  if (elements.opportunityType) {
+    elements.opportunityType.value = "Auto";
+  }
+  if (elements.stage) {
+    elements.stage.value = "Intake";
+  }
+  if (elements.goal) {
+    elements.goal.value = "Build full recruiter operating system";
+  }
+  if (elements.constraintsInput) {
+    elements.constraintsInput.value = "1 recruiter, 1 hiring manager, shortlist in 21 days, no paid tools";
+  }
+  if (elements.contextInput) {
+    elements.contextInput.value = "Vertical: recruitment/headhunting. Surface blind spots first, then build copy-pasteable execution artifacts for a serious recruiter.";
+  }
+
+  renderLiveCardPreview();
+  handleBuild({
+    demoMode: true,
+    verticalFocus: "Recruitment / Headhunting",
+    title: "Senior AE Blind Spot Diagnosis Demo"
+  });
+}
+
+function setRetryAction(action, label) {
+  state.retryAction = action;
+  if (!elements.retryBtn) {
+    return;
+  }
+
+  elements.retryBtn.hidden = false;
+  elements.retryBtn.textContent = label || "Retry last action";
+}
+
+function clearRetryAction() {
+  state.retryAction = null;
+  if (!elements.retryBtn) {
+    return;
+  }
+
+  elements.retryBtn.hidden = true;
+  elements.retryBtn.textContent = "Retry last action";
+}
+
+async function retryLastAction() {
+  if (!state.retryAction) {
+    return;
+  }
+
+  if (state.retryAction.type === "build") {
+    await handleBuild(state.lastBuildOptions || {});
+    return;
+  }
+
+  if (state.retryAction.type === "refine") {
+    await handleRefine();
+    return;
+  }
+
+  if (state.retryAction.type === "pdf") {
+    await downloadCurrentSystemPdf();
+  }
+}
+
+function setOutputEmptyState(isEmpty) {
+  if (elements.outputEmptyState) {
+    elements.outputEmptyState.hidden = !isEmpty;
+  }
+
+  if (elements.output) {
+    elements.output.hidden = isEmpty;
+  }
+
+  if (elements.exportRow) {
+    elements.exportRow.hidden = isEmpty;
+  }
+}
+
+async function copyCurrentSystemMarkdown() {
+  if (!state.currentSystem) {
+    setStatus("No system available to export yet", "warning");
+    return;
+  }
+
+  if (!state.currentSystemId) {
+    setStatus("Missing system id for export. Build again first.", "error");
+    return;
+  }
+
+  try {
+    const response = await fetchSystemExport("markdown");
+    const markdown = await response.text();
+    await navigator.clipboard.writeText(markdown);
+    clearRetryAction();
+    setStatus("System copied as Markdown", "success");
+  } catch (error) {
+    setStatus(error.message || "Could not copy Markdown to clipboard", "error");
+  }
+}
+
+async function downloadCurrentSystemPdf() {
+  if (!state.currentSystem) {
+    setStatus("No system available to export yet", "warning");
+    return;
+  }
+
+  if (!state.currentSystemId) {
+    setRetryAction({ type: "pdf" }, "Retry PDF export");
+    setStatus("Missing system id for export. Build again first.", "error");
+    return;
+  }
+
+  try {
+    setBusy(true, "Generating PDF export");
+    const response = await fetchSystemExport("pdf");
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    const contentDisposition = String(response.headers.get("content-disposition") || "");
+    const match = contentDisposition.match(/filename=\"?([^\";]+)\"?/i);
+    anchor.download = match && match[1] ? match[1] : `${slugifyTitle(buildSystemTitle(state.currentSystem))}.pdf`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+
+    clearRetryAction();
+    setStatus("PDF exported successfully", "success");
+  } catch (error) {
+    setRetryAction({ type: "pdf" }, "Retry PDF export");
+    setStatus(error.message || "PDF export failed", "error");
+  } finally {
+    setBusy(false, "Idle");
+  }
+}
+
+async function fetchSystemExport(format) {
+  const apiBase = resolveApiBase();
+  if (!apiBase) {
+    throw new Error("Missing apiBase in env.js");
+  }
+
+  const exportFormat = String(format || "markdown").toLowerCase();
+  const headers = {};
+  if (state.userId) {
+    headers["x-o2o-user-id"] = state.userId;
+  }
+  if (state.authToken) {
+    headers.Authorization = `Bearer ${state.authToken}`;
+  }
+
+  const response = await fetch(
+    `${apiBase}/api/systems/${encodeURIComponent(state.currentSystemId)}/export?format=${encodeURIComponent(exportFormat)}`,
+    {
+      method: "GET",
+      headers
+    }
+  );
+
+  if (response.status === 401 && state.authToken) {
+    state.authToken = "";
+    state.account = null;
+    clearStoredAccessToken();
+    renderSubscriberMenu();
+  }
+
+  if (!response.ok) {
+    let message = `Export failed (${response.status})`;
+    try {
+      const body = await response.clone().json();
+      if (body && typeof body.message === "string" && body.message.trim()) {
+        message = body.message.trim();
+      }
+    } catch {
+      const detail = await response.text();
+      if (detail && detail.trim()) {
+        message = detail.trim();
+      }
+    }
+
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
+  }
+
+  return response;
+}
+
+function buildSystemTitle(system) {
+  const summary = String((system && system.executive_summary) || "").trim();
+  if (summary) {
+    return summary.slice(0, 90);
+  }
+
+  const nextStep = String((system && system.system_card && system.system_card.recommended_next_step) || "").trim();
+  if (nextStep) {
+    return nextStep.slice(0, 90);
+  }
+
+  return "O2O Recruitment Operating System";
+}
+
+function slugifyTitle(value) {
+  const cleaned = String(value || "o2o-system")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+  return cleaned || "o2o-system";
+}
+
 function setStatus(text, tone) {
   elements.status.textContent = text;
   elements.status.dataset.tone = tone;
@@ -817,16 +1165,16 @@ function renderLiveCardPreview() {
       <div class="preview-grid">
         <div class="preview-sample">
           <h4>Sample While Idle</h4>
-          <p>Input: Our video editors are overloaded.</p>
+          <p>Input: Senior AE role brief is vague and keeps failing.</p>
           <ul class="preview-sample-list">
-            <li>Diagnosis: Creative / Content + Automation / AI Enablement</li>
-            <li>Pathway: Workflow System</li>
-            <li>Output: Pilot plan, SOPs, roles, review cadence, AI support map</li>
+            <li>Diagnosis: role brief has hidden failure assumptions</li>
+            <li>Pathway: Full Operating System</li>
+            <li>Output: corrected thesis, rubric, interview, outreach, 21-day sprint</li>
           </ul>
         </div>
         <div class="preview-row">
           <h4>Opportunity Type</h4>
-          <p>Creative / Content</p>
+          <p>Recruitment / Headhunting</p>
         </div>
         <div class="preview-row">
           <h4>Clarity Level</h4>
@@ -870,7 +1218,7 @@ function renderLiveCardPreview() {
       </div>
       <div class="preview-row">
         <h4>Recommended Next Step</h4>
-        <p>${escapeHtml(pathway === "Discovery System" ? "Run 14-day discovery sprint" : "Build pilot workflow and quality gates")}</p>
+        <p>${escapeHtml(pathway === "Discovery System" ? "Run blind-spot diagnosis and correct the search thesis" : "Build screening rubric, interview structure, and 21-day sprint")}</p>
       </div>
     </div>
   `;
@@ -878,6 +1226,8 @@ function renderLiveCardPreview() {
 
 function renderSystem(system) {
   const card = system.system_card || {};
+  const recruitment = system.recruitment_operating_system || {};
+  const blindSpots = recruitment.blind_spot_diagnosis || {};
   const diagnosis = system.diagnosis || {};
   const clarification = system.clarification || {};
   const responsibility = system.responsibility_contract || {};
@@ -901,6 +1251,7 @@ function renderSystem(system) {
   const version = system.version || { revision: 1, generated_at: "" };
 
   elements.outputSection.hidden = false;
+  setOutputEmptyState(false);
   elements.output.innerHTML = `
     <div class="result-grid">
       <article class="result-card">
@@ -919,6 +1270,48 @@ function renderSystem(system) {
         ${renderList(card.missing_information)}
         <h4>Recommended Next Step</h4>
         <p>${escapeHtml(card.recommended_next_step || "")}</p>
+      </article>
+
+      <article class="result-card">
+        <h3>Recruitment Operating System</h3>
+        <h4>Job Ad Diagnosis</h4>
+        <p>${escapeHtml(recruitment.job_ad_diagnosis || "")}</p>
+        <h4>Blind Spot Diagnosis</h4>
+        <div class="kv-grid">
+          <div class="kv"><strong>Stated Need</strong><span>${escapeHtml(blindSpots.stated_need || "")}</span></div>
+          <div class="kv"><strong>Likely Real Need</strong><span>${escapeHtml(blindSpots.likely_real_need || "")}</span></div>
+        </div>
+        <h4>False Assumptions</h4>
+        ${renderList(blindSpots.false_assumptions)}
+        <h4>Hidden Failure Modes</h4>
+        ${renderList(blindSpots.hidden_failure_modes)}
+        <h4>Wrong-Candidate Risks</h4>
+        ${renderList(blindSpots.wrong_candidate_risks)}
+        <h4>Missing Success Definition</h4>
+        ${renderList(blindSpots.missing_success_definition)}
+        <h4>Market Reality Check</h4>
+        ${renderList(blindSpots.compensation_or_level_mismatch)}
+        <h4>Passive Candidate Reality</h4>
+        <p>${escapeHtml(blindSpots.passive_candidate_reality || "")}</p>
+        <h4>Corrected Search Thesis</h4>
+        <p>${escapeHtml(blindSpots.corrected_search_thesis || "")}</p>
+        <h4>Hidden Success Profile</h4>
+        <p>${escapeHtml(recruitment.hidden_success_profile || "")}</p>
+        <h4>Boolean Search Strings</h4>
+        ${renderList(recruitment.boolean_search_strings)}
+        <h4>Screening Rubric</h4>
+        ${renderRecruitmentRubric(recruitment.screening_rubric)}
+        <h4>Interview Questions</h4>
+        ${renderInterviewQuestionGroups(recruitment.interview_questions)}
+        <h4>Outreach Message</h4>
+        <p>${escapeHtml(recruitment.outreach_message || "")}</p>
+        <h4>21-Day Search Sprint</h4>
+        <p><strong>Week 1</strong></p>
+        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week1)}
+        <p><strong>Week 2</strong></p>
+        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week2)}
+        <p><strong>Week 3</strong></p>
+        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week3)}
       </article>
 
       <article class="result-card">
@@ -1263,6 +1656,51 @@ function renderPrioritization(items) {
     .join("");
 }
 
+function renderRecruitmentRubric(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    return "<p>No rubric entries provided.</p>";
+  }
+
+  return list
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+
+      return `
+      <div class="kv">
+        <strong>${escapeHtml(item.category || "Category")}</strong>
+        <span>Weight: ${escapeHtml(item.weight || "")}</span>
+        <p>${escapeHtml(item.what_to_look_for || "")}</p>
+      </div>
+    `;
+    })
+    .join("");
+}
+
+function renderInterviewQuestionGroups(groups) {
+  if (!groups || typeof groups !== "object") {
+    return "<p>No interview questions provided.</p>";
+  }
+
+  const sections = [
+    { key: "technical", label: "Technical" },
+    { key: "behavioral", label: "Behavioral" },
+    { key: "execution", label: "Execution" },
+    { key: "stakeholder", label: "Stakeholder" }
+  ];
+
+  return sections
+    .map((section) => {
+      return `
+      <h4>${escapeHtml(section.label)}</h4>
+      ${renderList(groups[section.key])}
+    `;
+    })
+    .join("");
+}
+
 function renderList(items) {
   const list = toArray(items);
   if (!list.length) {
@@ -1283,29 +1721,23 @@ function renderBadge(value) {
 function inferOpportunityType(input) {
   const text = String(input || "").toLowerCase();
 
-  if (/(factory|warehouse|logistics|inventory|fulfillment|fleet)/.test(text)) {
-    return "Physical Operations";
+  if (/(c-level|chief|vp|vice president|director|executive)/.test(text)) {
+    return "Executive Search";
   }
-  if (/(product|feature|roadmap|release|sprint|prototype)/.test(text)) {
-    return "Product Build";
+  if (/(volume|high-volume|retail|call center|mass hiring|bulk)/.test(text)) {
+    return "High-Volume Hiring";
   }
-  if (/(content|campaign|brand|video|newsletter|creative)/.test(text)) {
-    return "Creative / Content";
+  if (/(engineer|developer|data|ml|ai|security|platform)/.test(text)) {
+    return "Hard-to-Fill Technical";
   }
-  if (/(team|manager|handoff|training|performance|leadership)/.test(text)) {
-    return "Team Performance";
+  if (/(replace|replacement|backfill|attrition)/.test(text)) {
+    return "Replacement Hire";
   }
-  if (/(customer|support|ticket|onboarding|retention|nps)/.test(text)) {
-    return "Customer / Support";
-  }
-  if (/(strategy|market|positioning|discovery|research)/.test(text)) {
-    return "Strategy / Discovery";
-  }
-  if (/(automation|ai|agent|workflow automation|llm|copilot)/.test(text)) {
-    return "Automation / AI Enablement";
+  if (/(agency|client|retained|contingency)/.test(text)) {
+    return "Agency Client Intake";
   }
 
-  return "Strategy / Discovery";
+  return "New Search Launch";
 }
 
 function inferClarity(input) {
@@ -1332,7 +1764,29 @@ function inferClarity(input) {
 function inferPathway(input, stage, goal) {
   const text = String(input || "").trim();
   const normalizedGoal = String(goal || "").toLowerCase();
+  const normalizedStage = String(stage || "").toLowerCase();
   const clarity = inferClarity(text);
+
+  if (
+    normalizedGoal.includes("blind spots") ||
+    normalizedGoal.includes("search thesis") ||
+    normalizedGoal.includes("diagnose brief risks") ||
+    normalizedGoal.includes("correct the search thesis")
+  ) {
+    return "Discovery System";
+  }
+
+  if (normalizedGoal.includes("screening") || normalizedGoal.includes("interview")) {
+    return "Workflow System";
+  }
+
+  if (normalizedGoal.includes("operating system")) {
+    return "Full Operating System";
+  }
+
+  if (normalizedGoal.includes("21-day search sprint")) {
+    return "Full Operating System";
+  }
 
   if (normalizedGoal.includes("full operating system")) {
     return "Full Operating System";
@@ -1342,11 +1796,24 @@ function inferPathway(input, stage, goal) {
     return "Workflow System";
   }
 
-  if (clarity === "Vague" || clarity === "Needs Discovery" || stage === "Discovery") {
+  if (
+    clarity === "Vague" ||
+    clarity === "Needs Discovery" ||
+    stage === "Discovery" ||
+    normalizedStage.includes("pre-search") ||
+    normalizedStage.includes("intake") ||
+    normalizedStage.includes("calibration")
+  ) {
     return "Discovery System";
   }
 
-  if (stage === "Pilot" || stage === "Scale") {
+  if (
+    stage === "Pilot" ||
+    stage === "Scale" ||
+    normalizedStage.includes("screening") ||
+    normalizedStage.includes("shortlist") ||
+    normalizedStage.includes("offer")
+  ) {
     return "Full Operating System";
   }
 

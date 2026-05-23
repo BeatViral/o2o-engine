@@ -1,0 +1,68 @@
+{
+  "vertical_id": "replace_with_vertical_id",
+  "product_name": "O2O for <Industry>",
+  "tagline": "Pre-search diagnosis for <industry operators>",
+  "core_product_sentence": "GPT helps execute faster. O2O finds hidden flaws first, then builds the operating system around the corrected problem.",
+  "homepage_sections": [
+    "Hero",
+    "GPT_vs_O2O",
+    "Blind_Spot_Diagnosis",
+    "What_O2O_Builds",
+    "Single_Realistic_Demo",
+    "Testimonials",
+    "Pricing",
+    "Footer_with_parent_brand"
+  ],
+  "blind_spot_diagnosis_contract": {
+    "stated_need": "string",
+    "likely_real_need": "string",
+    "false_assumptions": [
+      "string"
+    ],
+    "hidden_failure_modes": [
+      "string"
+    ],
+    "wrong_outcome_risks": [
+      "string"
+    ],
+    "missing_success_definition": [
+      "string"
+    ],
+    "market_or_resource_mismatch": [
+      "string"
+    ],
+    "execution_reality": "string",
+    "corrected_thesis": "string"
+  },
+  "operating_system_artifacts": [
+    "success_profile",
+    "persona_or_target_entity",
+    "wildcard_profile",
+    "search_or_execution_strategy",
+    "evaluation_rubric",
+    "interview_or_validation_structure",
+    "risk_flags",
+    "outreach_or_communication_assets",
+    "scorecard",
+    "21_day_sprint",
+    "cadence",
+    "next_actions"
+  ],
+  "demo_template": {
+    "weak_input": "single realistic weak brief for this industry",
+    "jaw_drop_moment": "one diagnosis line that surfaces hidden truth",
+    "corrected_thesis_line": "one explicit corrected thesis line",
+    "system_outputs_preview": [
+      "artifact_1",
+      "artifact_2",
+      "artifact_3"
+    ]
+  },
+  "worker_requirements": {
+    "strict_json_schema": true,
+    "full_contract_refine": true,
+    "version_conflict_guard": true,
+    "memory_persistence": true,
+    "markdown_pdf_export": true
+  }
+}

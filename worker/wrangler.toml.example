@@ -14,6 +14,7 @@ LEMON_VARIANT_PLAN_MAP = "12345:starter,23456:pro,34567:scale"
 CHECKOUT_URL_STARTER = ""
 CHECKOUT_URL_PRO = ""
 CHECKOUT_URL_SCALE = ""
+PDF_EXPORT_SERVICE_URL = ""
 
 # Optional KV for per-IP rate limiting.
 # [[kv_namespaces]]
@@ -24,6 +25,12 @@ CHECKOUT_URL_SCALE = ""
 # [[kv_namespaces]]
 # binding = "SUBSCRIBER_KV"
 # id = "REPLACE_WITH_SUBSCRIBER_KV_NAMESPACE_ID"
+
+# Recommended KV for system memory persistence.
+# If omitted, Worker falls back to SUBSCRIBER_KV for memory storage.
+# [[kv_namespaces]]
+# binding = "SYSTEM_MEMORY_KV"
+# id = "REPLACE_WITH_SYSTEM_MEMORY_KV_NAMESPACE_ID"
 
 # Required secrets (set with Wrangler):
 # wrangler secret put OPENAI_API_KEY

@@ -1,11 +1,13 @@
 # O2O Engine
 
-O2O Engine transforms any user-described opportunity into a structured, AI-enabled operating system using a static frontend and a secure Cloudflare Worker backend.
+O2O launches as O2O for Recruiters: a recruitment operating system generator that diagnoses blind spots before building sourcing and execution systems.
 
 ## Project Structure
 
 - `frontend/` GitHub Pages static app
 - `worker/` Cloudflare Worker API (OpenAI key stored as secret)
+- `pdf-export-service/` Puppeteer Markdown-to-PDF service used by Worker export proxy
+- `vertical-template/` Reusable blueprint for launching standalone O2O vertical apps
 
 ## What is Implemented
 
@@ -21,6 +23,23 @@ O2O Engine transforms any user-described opportunity into a structured, AI-enabl
 - Subscriber access menu with access-code activation
 - Plan-based generation quotas and image upload limits
 - Lemon Squeezy webhook sync endpoint for plan/status updates
+- Deterministic user identity support (`x-o2o-user-id`)
+- Version-locked refine flow with stale-version conflict protection (`409`)
+- System memory routes (`/api/monday-morning`, `/api/systems`, system detail/actions/export)
+- Worker-driven markdown and PDF export for persisted systems
+- Mandatory recruiter blind-spot diagnosis layer with corrected search thesis
+
+## Verticalization Template Saved
+
+Recruitment is the first spearhead vertical.
+
+Reusable templates for future standalone vertical apps are saved in `vertical-template/`:
+
+- `vertical-template/vertical-app-template.json`
+- `vertical-template/recruiters-reference.md`
+- `vertical-template/industries-roadmap.md`
+
+This keeps the parent O2O Engine architecture intact while allowing fast cloning for industry-specific apps.
 
 ## Responsibility Design
 
@@ -67,14 +86,28 @@ OpenAI key remains in Cloudflare Worker secrets (not GitHub). Set once using:
    - Optional checkout links: `CHECKOUT_URL_STARTER`, `CHECKOUT_URL_PRO`, `CHECKOUT_URL_SCALE`
 6. Bind KV namespaces:
    - Required: `SUBSCRIBER_KV` (subscriber records + monthly usage)
+   - Recommended: `SYSTEM_MEMORY_KV` (persisted system versions + next actions)
    - Optional: `RATE_LIMIT_KV` (IP-level throttle)
 7. Set secrets:
    - `wrangler secret put OPENAI_API_KEY`
    - `wrangler secret put SESSION_SIGNING_SECRET`
    - Optional for webhook verification: `wrangler secret put LEMON_WEBHOOK_SECRET`
-8. Deploy:
+8. Set Worker var for PDF export proxy:
+   - `PDF_EXPORT_SERVICE_URL = "https://your-pdf-service.example.com"`
+9. Deploy:
    - `npm run deploy`
-9. Copy deployed workers.dev URL.
+10. Copy deployed workers.dev URL.
+
+## Deploy PDF Export Service
+
+1. Open terminal in `pdf-export-service`.
+2. Install dependencies:
+   - `npm install`
+3. Start service:
+   - `npm run start`
+4. Verify health endpoint:
+   - `GET /health`
+5. Deploy to your host of choice, then set `PDF_EXPORT_SERVICE_URL` in Worker config.
 
 ## Configure Frontend
 
@@ -109,6 +142,14 @@ Run these in `o2o-engine` after you create the GitHub repo:
 - `POST /api/billing/webhook/lemon`
 - `POST /api/build`
 - `POST /api/refine`
+- `GET /api/monday-morning`
+- `GET /api/systems`
+- `GET /api/systems/:id`
+- `POST /api/systems/:id/next-actions`
+- `GET /api/systems/:id/export?format=markdown`
+- `GET /api/systems/:id/export?format=pdf`
+
+`POST /api/refine` now requires `systemId` and `versionNumber`.
 
 ## Security Notes
 
@@ -120,6 +161,6 @@ Run these in `o2o-engine` after you create the GitHub repo:
 
 ## Suggested Next Upgrade
 
-- Persist system versions in D1
 - Team auth + workspace sharing
-- Export to PDF and Notion
+- Export to Notion
+- Background job queue for large generation workflows

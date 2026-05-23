@@ -285,6 +285,82 @@ main,
   gap: 0.44rem;
 }
 
+.menu-faq {
+  margin-top: 0.72rem;
+  border-top: 1px solid rgba(17, 88, 95, 0.2);
+  padding-top: 0.66rem;
+}
+
+.menu-faq-title {
+  margin: 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 0.9rem;
+  color: #183940;
+}
+
+.menu-faq-item {
+  margin-top: 0.35rem;
+  border: 1px solid rgba(16, 68, 76, 0.22);
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.86), rgba(228, 249, 251, 0.86));
+  overflow: hidden;
+}
+
+.menu-faq-item > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  padding: 0.62rem 0.68rem;
+  font-size: 0.79rem;
+  font-weight: 700;
+  color: #143941;
+}
+
+.menu-faq-item > summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-faq-item > summary::after {
+  content: "+";
+  float: right;
+  font-size: 0.95rem;
+  line-height: 1;
+  color: #1a5a66;
+}
+
+.menu-faq-item[open] > summary::after {
+  content: "-";
+}
+
+.menu-faq-answer {
+  border-top: 1px solid rgba(16, 68, 76, 0.16);
+  padding: 0.62rem 0.68rem 0.72rem;
+  max-height: 48vh;
+  overflow-y: auto;
+  font-size: 0.75rem;
+  color: #1f3f4a;
+}
+
+.menu-faq-answer h4 {
+  margin: 0.72rem 0 0.3rem;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 0.82rem;
+  color: #16353c;
+}
+
+.menu-faq-answer p {
+  margin: 0.38rem 0;
+}
+
+.menu-faq-answer ul {
+  margin: 0.36rem 0 0.48rem;
+  padding-left: 1.05rem;
+}
+
+.menu-faq-answer li {
+  margin: 0.25rem 0;
+}
+
 .subscriber-link {
   display: inline-flex;
   align-items: center;
@@ -338,6 +414,14 @@ main,
   line-height: 1.55;
 }
 
+.hero-subline {
+  margin: 0.55rem 0 0;
+  max-width: 760px;
+  color: #20424a;
+  font-size: 1.04rem;
+  font-weight: 700;
+}
+
 .hero-heart {
   margin-top: 1rem;
   max-width: 980px;
@@ -380,6 +464,26 @@ main,
   border-radius: 0 10px 10px 0;
   padding: 0.18rem 0.8rem;
   padding-left: 0.8rem;
+}
+
+.hero-run-btn {
+  margin-top: 0.95rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.72rem 1.15rem;
+  font-weight: 800;
+  color: #ecfeff;
+  background: linear-gradient(120deg, #007e86, #00c8cf 58%, #6af4f8 100%);
+  box-shadow: 0 12px 24px rgba(0, 151, 160, 0.34);
+  transition: transform 170ms ease, box-shadow 170ms ease, filter 170ms ease;
+}
+
+.hero-run-btn:hover {
+  transform: translateY(-2px);
+  filter: saturate(1.08);
 }
 
 .hero-metrics {
@@ -557,6 +661,7 @@ textarea {
   display: flex;
   gap: 0.75rem;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .primary-btn,
@@ -597,6 +702,28 @@ textarea {
   font-size: 0.9rem;
   font-family: "IBM Plex Mono", monospace;
   color: #404452;
+}
+
+.output-empty-state {
+  padding: 1rem;
+  border-style: dashed;
+}
+
+.output-empty-state h3 {
+  margin: 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+}
+
+.output-empty-state p {
+  margin: 0.35rem 0 0;
+  color: #41535f;
+}
+
+.export-row {
+  margin-top: 0.8rem;
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .live-card {
@@ -670,9 +797,75 @@ textarea {
 }
 
 .example,
+.comparison,
+.blind-spot-section,
+.builds-section,
 .video-section,
+.testimonials,
 .pricing {
   margin-top: 1rem;
+}
+
+.comparison-grid {
+  margin-top: 0.82rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.comparison-card {
+  padding: 1rem;
+}
+
+.comparison-card h4 {
+  margin: 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  color: #11333b;
+}
+
+.comparison-card p {
+  margin: 0.45rem 0 0;
+  color: #2a4752;
+}
+
+.comparison-card.emphasis {
+  border-color: rgba(255, 106, 43, 0.34);
+  background: linear-gradient(150deg, rgba(255, 250, 246, 0.98), rgba(245, 255, 255, 0.9));
+}
+
+.blind-spot-panel,
+.builds-panel {
+  padding: 1rem;
+}
+
+.blind-spot-list {
+  margin: 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.blind-spot-list li {
+  color: #22424d;
+  line-height: 1.45;
+}
+
+.builds-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.build-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  border: 1px solid rgba(0, 216, 222, 0.28);
+  border-radius: 12px;
+  padding: 0.48rem 0.62rem;
+  font-size: 0.86rem;
+  color: #1f3f49;
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.95), rgba(235, 254, 255, 0.88));
 }
 
 .video-panel {
@@ -710,6 +903,37 @@ textarea {
   margin-top: 0.85rem;
   display: grid;
   gap: 0.85rem;
+}
+
+.testimonials-grid {
+  margin-top: 0.82rem;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.8rem;
+}
+
+.testimonial-card {
+  padding: 1rem;
+  border: 1px solid rgba(255, 106, 43, 0.22);
+  background:
+    radial-gradient(circle at 90% 12%, rgba(255, 200, 87, 0.18), rgba(255, 200, 87, 0) 45%),
+    linear-gradient(155deg, rgba(255, 255, 255, 0.96), rgba(249, 252, 255, 0.88));
+}
+
+.testimonial-quote {
+  margin: 0;
+  color: #183740;
+  font-size: 0.98rem;
+  line-height: 1.5;
+}
+
+.testimonial-author {
+  margin: 0.62rem 0 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #33515d;
 }
 
 .example-case {
@@ -1225,7 +1449,13 @@ textarea {
   }
 
   .examples-stack,
+  .comparison-grid,
+  .testimonials-grid,
   .pricing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .builds-grid {
     grid-template-columns: 1fr;
   }
 

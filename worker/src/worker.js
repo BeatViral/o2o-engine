@@ -63,6 +63,7 @@ const OUTPUT_SCHEMA = {
       "diagnosis",
       "clarification",
       "executive_summary",
+      "recruitment_operating_system",
       "opportunity_map",
       "workflow_blueprint",
       "ai_use_case_map",
@@ -151,6 +152,143 @@ const OUTPUT_SCHEMA = {
         }
       },
       executive_summary: { type: "string" },
+      recruitment_operating_system: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "job_ad_diagnosis",
+          "blind_spot_diagnosis",
+          "hidden_success_profile",
+          "ideal_candidate_persona",
+          "wildcard_adjacent_profiles",
+          "sourcing_strategy",
+          "boolean_search_strings",
+          "screening_rubric",
+          "interview_questions",
+          "red_flags",
+          "outreach_message",
+          "shortlist_scorecard",
+          "search_sprint_21_day_plan",
+          "client_briefing_notes",
+          "hiring_operating_cadence"
+        ],
+        properties: {
+          job_ad_diagnosis: { type: "string" },
+          blind_spot_diagnosis: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "stated_need",
+              "likely_real_need",
+              "false_assumptions",
+              "hidden_failure_modes",
+              "wrong_candidate_risks",
+              "missing_success_definition",
+              "compensation_or_level_mismatch",
+              "passive_candidate_reality",
+              "corrected_search_thesis"
+            ],
+            properties: {
+              stated_need: { type: "string" },
+              likely_real_need: { type: "string" },
+              false_assumptions: { type: "array", items: { type: "string" } },
+              hidden_failure_modes: { type: "array", items: { type: "string" } },
+              wrong_candidate_risks: { type: "array", items: { type: "string" } },
+              missing_success_definition: { type: "array", items: { type: "string" } },
+              compensation_or_level_mismatch: { type: "array", items: { type: "string" } },
+              passive_candidate_reality: { type: "string" },
+              corrected_search_thesis: { type: "string" }
+            }
+          },
+          hidden_success_profile: { type: "string" },
+          ideal_candidate_persona: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "mission",
+              "must_have_competencies",
+              "domain_context",
+              "first_90_day_outcomes"
+            ],
+            properties: {
+              mission: { type: "string" },
+              must_have_competencies: { type: "array", items: { type: "string" } },
+              domain_context: { type: "array", items: { type: "string" } },
+              first_90_day_outcomes: { type: "array", items: { type: "string" } }
+            }
+          },
+          wildcard_adjacent_profiles: { type: "array", items: { type: "string" } },
+          sourcing_strategy: {
+            type: "object",
+            additionalProperties: false,
+            required: ["channels", "weekly_targets", "messaging_angles"],
+            properties: {
+              channels: { type: "array", items: { type: "string" } },
+              weekly_targets: { type: "array", items: { type: "string" } },
+              messaging_angles: { type: "array", items: { type: "string" } }
+            }
+          },
+          boolean_search_strings: { type: "array", items: { type: "string" } },
+          screening_rubric: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["category", "weight", "what_to_look_for"],
+              properties: {
+                category: { type: "string" },
+                weight: { type: "string" },
+                what_to_look_for: { type: "string" }
+              }
+            }
+          },
+          interview_questions: {
+            type: "object",
+            additionalProperties: false,
+            required: ["technical", "behavioral", "execution", "stakeholder"],
+            properties: {
+              technical: { type: "array", items: { type: "string" } },
+              behavioral: { type: "array", items: { type: "string" } },
+              execution: { type: "array", items: { type: "string" } },
+              stakeholder: { type: "array", items: { type: "string" } }
+            }
+          },
+          red_flags: { type: "array", items: { type: "string" } },
+          outreach_message: { type: "string" },
+          shortlist_scorecard: {
+            type: "array",
+            items: {
+              type: "object",
+              additionalProperties: false,
+              required: ["dimension", "description"],
+              properties: {
+                dimension: { type: "string" },
+                description: { type: "string" }
+              }
+            }
+          },
+          search_sprint_21_day_plan: {
+            type: "object",
+            additionalProperties: false,
+            required: ["week1", "week2", "week3"],
+            properties: {
+              week1: { type: "array", items: { type: "string" } },
+              week2: { type: "array", items: { type: "string" } },
+              week3: { type: "array", items: { type: "string" } }
+            }
+          },
+          client_briefing_notes: { type: "string" },
+          hiring_operating_cadence: {
+            type: "object",
+            additionalProperties: false,
+            required: ["weekly", "monthly"],
+            properties: {
+              weekly: { type: "array", items: { type: "string" } },
+              monthly: { type: "array", items: { type: "string" } }
+            }
+          }
+        }
+      },
       opportunity_map: {
         type: "object",
         additionalProperties: false,
@@ -492,8 +630,9 @@ const OUTPUT_SCHEMA = {
 };
 
 const SYSTEM_PROMPT = [
-  "You are O2O Engine (Opportunity-to-Operating-System Engine).",
-  "You transform any user-described idea, problem, or opportunity into a structured operating system.",
+  "You are O2O for Recruiters (Opportunity-to-Operating-System Engine for recruitment).",
+  "You transform recruiter role briefs into structured recruitment operating systems.",
+  "MVP vertical focus is Recruitment / Headhunting. Produce recruiter-ready content that can be used immediately.",
   "Always diagnose first, then route, then generate.",
   "",
   "Hard requirements:",
@@ -507,9 +646,12 @@ const SYSTEM_PROMPT = [
   "8) Keep output consulting-grade, concise, actionable, and deterministic.",
   "9) For non-selected pathways, keep arrays present but minimal.",
   "10) Return strict JSON only, no markdown.",
+  "10a) For refinement mode, return the FULL JSON contract object, never a diff, patch, or partial update.",
   "11) Do not issue blind prescriptions. Frame output as structured decision support with options, assumptions, and controls.",
   "12) Explicitly acknowledge limits, constraints, and uncertainty where present.",
   "13) Always include a smallest safe test before recommending scale actions.",
+  "14) For recruitment outputs, include blind_spot_diagnosis BEFORE persona, sourcing, boolean strings, screening rubric, outreach, and sprint planning.",
+  "15) In blind_spot_diagnosis, explicitly expose hidden flaw(s) in the role brief and produce a corrected_search_thesis that reframes who should actually be hired.",
   "",
   "Content quality requirements:",
   "- Include concrete pilot actions and quality gates.",
@@ -518,6 +660,8 @@ const SYSTEM_PROMPT = [
   "- Include metrics that can be measured weekly.",
   "- Keep recommendations testable within 2-4 weeks where possible.",
   "- If image context is attached, extract concrete observations from it and tie recommendations to those observations.",
+  "- For recruitment outputs, include concrete boolean strings, rubrics, interview questions, outreach copy, and a detailed 21-day sprint.",
+  "- Product sentence to embody in output logic: GPT helps search better; O2O should surface when the search is targeting the wrong profile, then build the system to find the right one.",
   "- Use responsibility_contract to prove context attachment and non-prescriptive behavior."
 ].join("\n");
 
@@ -553,6 +697,29 @@ export default {
       return withErrorBoundary(request, env, () => handleRefine(request, env));
     }
 
+    if (url.pathname === "/api/monday-morning" && request.method === "GET") {
+      return withErrorBoundary(request, env, () => handleMondayMorning(request, env));
+    }
+
+    if (url.pathname === "/api/systems" && request.method === "GET") {
+      return withErrorBoundary(request, env, () => handleListSystems(request, env));
+    }
+
+    const systemDetailMatch = url.pathname.match(/^\/api\/systems\/([^/]+)$/);
+    if (systemDetailMatch && request.method === "GET") {
+      return withErrorBoundary(request, env, () => handleGetSystem(request, env, systemDetailMatch[1]));
+    }
+
+    const systemActionsMatch = url.pathname.match(/^\/api\/systems\/([^/]+)\/next-actions$/);
+    if (systemActionsMatch && request.method === "POST") {
+      return withErrorBoundary(request, env, () => handleUpdateNextActions(request, env, systemActionsMatch[1]));
+    }
+
+    const systemExportMatch = url.pathname.match(/^\/api\/systems\/([^/]+)\/export$/);
+    if (systemExportMatch && request.method === "GET") {
+      return withErrorBoundary(request, env, () => handleExportSystem(request, env, systemExportMatch[1]));
+    }
+
     return corsJson(request, env, { ok: false, message: "Not found" }, 404);
   }
 };
@@ -576,12 +743,17 @@ async function withErrorBoundary(request, env, fn) {
     return await fn();
   } catch (error) {
     const message = String(error && error.message ? error.message : error || "Unexpected error");
-    return corsJson(request, env, { ok: false, message }, 500);
+    const statusCode = Number(error && error.statusCode);
+    const status = Number.isFinite(statusCode) && statusCode >= 400 && statusCode < 600 ? statusCode : 500;
+    return corsJson(request, env, { ok: false, message }, status);
   }
 }
 
 async function handleAccount(request, env) {
   const billingEnforced = isBillingEnforced(env);
+  const identity = resolveRequestIdentity(request, null);
+  const usageMonth = currentUsageMonthKey();
+  const usageUsed = await readUserGenerationUsage(env, identity.user_id, usageMonth);
 
   if (!hasBillingStore(env)) {
     if (billingEnforced) {
@@ -600,6 +772,11 @@ async function handleAccount(request, env) {
       ok: true,
       billing_enforced: false,
       authenticated: false,
+      user_id: identity.user_id,
+      usage_hook: {
+        month: usageMonth,
+        generations_used: usageUsed
+      },
       account: null
     });
   }
@@ -622,15 +799,26 @@ async function handleAccount(request, env) {
       ok: true,
       billing_enforced: billingEnforced,
       authenticated: false,
+      user_id: identity.user_id,
+      usage_hook: {
+        month: usageMonth,
+        generations_used: usageUsed
+      },
       account: null
     });
   }
 
+  const resolvedIdentity = resolveRequestIdentity(request, resolved.subscriber);
   const account = await buildAccountView(env, resolved.subscriber);
   return corsJson(request, env, {
     ok: true,
     billing_enforced: billingEnforced,
     authenticated: true,
+    user_id: resolvedIdentity.user_id,
+    usage_hook: {
+      month: usageMonth,
+      generations_used: await readUserGenerationUsage(env, resolvedIdentity.user_id, usageMonth)
+    },
     account
   });
 }
@@ -685,11 +873,13 @@ async function handleAccessActivate(request, env) {
 
   const token = await issueSessionToken(env, { subscriber_id: subscriber.subscriber_id });
   const account = await buildAccountView(env, subscriber);
+  const identity = resolveRequestIdentity(request, subscriber);
 
   return corsJson(request, env, {
     ok: true,
     billing_enforced: isBillingEnforced(env),
     authenticated: true,
+    user_id: identity.user_id,
     token,
     account
   });
@@ -748,6 +938,257 @@ async function handleLemonWebhook(request, env) {
   });
 }
 
+async function handleMondayMorning(request, env) {
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  ensureMemoryStoreConfigured(request, env);
+
+  const identity = resolveRequestIdentity(request, access.subscriber);
+  const systems = await listSystemsForUser(env, identity.user_id);
+
+  const sortedSystems = [...systems].sort((left, right) => {
+    const leftTs = Date.parse(left.last_viewed_at || left.updated_at || left.created_at || 0);
+    const rightTs = Date.parse(right.last_viewed_at || right.updated_at || right.created_at || 0);
+    return rightTs - leftTs;
+  });
+
+  const lastActive = sortedSystems.find((item) => item.status !== "archived") || sortedSystems[0] || null;
+  const allActions = [];
+
+  for (const system of sortedSystems) {
+    const actions = await getNextActions(env, system.id, identity.user_id);
+    for (const action of actions) {
+      allActions.push({
+        ...action,
+        system_title: system.title || "Untitled System"
+      });
+    }
+  }
+
+  const nowIso = new Date().toISOString().slice(0, 10);
+  const overdue = allActions
+    .filter((action) => action.status !== "done" && action.due_date && action.due_date < nowIso)
+    .sort((left, right) => String(left.due_date).localeCompare(String(right.due_date)));
+
+  const upcoming = allActions
+    .filter((action) => action.status !== "done" && action.due_date && action.due_date >= nowIso)
+    .sort((left, right) => String(left.due_date).localeCompare(String(right.due_date)));
+
+  let lastActiveSummary = null;
+  if (lastActive) {
+    const latestVersion = await getLatestSystemVersion(env, lastActive.id, identity.user_id);
+    lastActiveSummary = {
+      id: lastActive.id,
+      title: lastActive.title,
+      updated_at: lastActive.updated_at,
+      summary: summarizeSystem(latestVersion ? latestVersion.system_json : null),
+      key_next_actions: (await getNextActions(env, lastActive.id, identity.user_id)).slice(0, 5)
+    };
+  }
+
+  return corsJson(request, env, {
+    ok: true,
+    user_id: identity.user_id,
+    billing_enforced: access.billing_enforced,
+    last_active_system: lastActiveSummary,
+    upcoming_next_actions: upcoming,
+    overdue_next_actions: overdue
+  });
+}
+
+async function handleListSystems(request, env) {
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  ensureMemoryStoreConfigured(request, env);
+  const identity = resolveRequestIdentity(request, access.subscriber);
+  const systems = await listSystemsForUser(env, identity.user_id);
+
+  const view = systems.map((system) => ({
+    id: system.id,
+    title: system.title,
+    status: system.status,
+    created_at: system.created_at,
+    updated_at: system.updated_at,
+    last_viewed_at: system.last_viewed_at,
+    latest_version_number: system.latest_version_number
+  }));
+
+  return corsJson(request, env, {
+    ok: true,
+    user_id: identity.user_id,
+    systems: view
+  });
+}
+
+async function handleGetSystem(request, env, rawSystemId) {
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  ensureMemoryStoreConfigured(request, env);
+
+  const identity = resolveRequestIdentity(request, access.subscriber);
+  const systemId = cleanText(rawSystemId, 120);
+  const metadata = await getSystemMetadata(env, systemId);
+
+  if (!metadata || metadata.user_id !== identity.user_id) {
+    return corsJson(request, env, { ok: false, message: "System not found." }, 404);
+  }
+
+  const latestVersion = await getLatestSystemVersion(env, systemId, identity.user_id);
+  if (!latestVersion) {
+    return corsJson(request, env, { ok: false, message: "System version not found." }, 404);
+  }
+
+  metadata.last_viewed_at = new Date().toISOString();
+  await putSystemMetadata(env, metadata);
+
+  return corsJson(request, env, {
+    ok: true,
+    user_id: identity.user_id,
+    system: latestVersion.system_json,
+    metadata,
+    version_number: latestVersion.version_number,
+    next_actions: await getNextActions(env, systemId, identity.user_id)
+  });
+}
+
+async function handleUpdateNextActions(request, env, rawSystemId) {
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  ensureMemoryStoreConfigured(request, env);
+
+  const identity = resolveRequestIdentity(request, access.subscriber);
+  const systemId = cleanText(rawSystemId, 120);
+  const metadata = await getSystemMetadata(env, systemId);
+
+  if (!metadata || metadata.user_id !== identity.user_id) {
+    return corsJson(request, env, { ok: false, message: "System not found." }, 404);
+  }
+
+  const body = await safeJson(request);
+  const actions = Array.isArray(body.actions) ? body.actions : [];
+  const normalized = normalizeNextActions(actions, {
+    system_id: systemId,
+    user_id: identity.user_id,
+    now: new Date().toISOString()
+  });
+
+  await setNextActions(env, systemId, identity.user_id, normalized);
+  metadata.updated_at = new Date().toISOString();
+  await putSystemMetadata(env, metadata);
+
+  return corsJson(request, env, {
+    ok: true,
+    user_id: identity.user_id,
+    next_actions: normalized
+  });
+}
+
+async function handleExportSystem(request, env, rawSystemId) {
+  const access = await authorizeGenerationRequest(request, env);
+  if (access.response) {
+    return access.response;
+  }
+
+  ensureMemoryStoreConfigured(request, env);
+
+  const identity = resolveRequestIdentity(request, access.subscriber);
+  const systemId = cleanText(rawSystemId, 120);
+  const metadata = await getSystemMetadata(env, systemId);
+
+  if (!metadata || metadata.user_id !== identity.user_id) {
+    return corsJson(request, env, { ok: false, message: "System not found." }, 404);
+  }
+
+  const latestVersion = await getLatestSystemVersion(env, systemId, identity.user_id);
+  if (!latestVersion) {
+    return corsJson(request, env, { ok: false, message: "System version not found." }, 404);
+  }
+
+  const nextActions = await getNextActions(env, systemId, identity.user_id);
+  const markdown = buildSystemMarkdown(latestVersion.system_json, metadata, nextActions);
+  const url = new URL(request.url);
+  const format = cleanText(url.searchParams.get("format"), 20).toLowerCase() || "markdown";
+
+  if (format === "markdown") {
+    return corsResponse(
+      request,
+      env,
+      new Response(markdown, {
+        status: 200,
+        headers: {
+          "Content-Type": "text/markdown; charset=utf-8"
+        }
+      })
+    );
+  }
+
+  if (format !== "pdf") {
+    return corsJson(request, env, { ok: false, message: "Unsupported export format." }, 400);
+  }
+
+  const pdfExportUrl = cleanText(env.PDF_EXPORT_SERVICE_URL, 600);
+  if (!pdfExportUrl) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "PDF export service is not configured. Set PDF_EXPORT_SERVICE_URL."
+      },
+      503
+    );
+  }
+
+  const pdfResponse = await fetch(`${pdfExportUrl.replace(/\/+$/, "")}/api/export/pdf`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      title: metadata.title,
+      markdown
+    })
+  });
+
+  if (!pdfResponse.ok) {
+    const detail = await pdfResponse.text();
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: `PDF export failed: ${detail.slice(0, 400)}`
+      },
+      502
+    );
+  }
+
+  const pdfBytes = await pdfResponse.arrayBuffer();
+  return corsResponse(
+    request,
+    env,
+    new Response(pdfBytes, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${safeFileName(metadata.title || "o2o-system")}.pdf"`
+      }
+    })
+  );
+}
+
 async function handleBuild(request, env) {
   if (!env.OPENAI_API_KEY) {
     return corsJson(request, env, { ok: false, message: "Missing OPENAI_API_KEY secret." }, 500);
@@ -758,7 +1199,10 @@ async function handleBuild(request, env) {
     return access.response;
   }
 
+  ensureMemoryStoreConfigured(request, env);
+
   const subscriber = access.subscriber;
+  const identity = resolveRequestIdentity(request, subscriber);
   const planLimits = subscriber ? getPlanLimits(subscriber.plan) : null;
   const imageLimitBytes = planLimits ? planLimits.max_image_bytes : MAX_IMAGE_BYTES;
 
@@ -800,6 +1244,9 @@ async function handleBuild(request, env) {
 
   const inputPayload = {
     action: "build_system",
+    user_id: identity.user_id,
+    vertical_focus: cleanText(body.verticalFocus, 160) || "Recruitment / Headhunting",
+    demo_mode: Boolean(body.demoMode),
     user_input: userInput,
     opportunity_type_hint: cleanText(body.opportunityTypeHint, 100),
     stage: cleanText(body.stage, 100),
@@ -818,11 +1265,19 @@ async function handleBuild(request, env) {
     generated_at: new Date().toISOString()
   };
 
-  const generated = await callOpenAIForSystem(env, "build", inputPayload, { imageContext });
-  const normalized = normalizeOutput(generated, {
+  const normalized = await generateValidatedSystem(env, {
     mode: "build",
+    payload: inputPayload,
+    sourceInput: userInput,
     priorSystem: null,
-    sourceInput: userInput
+    options: { imageContext },
+    userId: identity.user_id
+  });
+
+  const persisted = await createSystemWithFirstVersion(env, {
+    user_id: identity.user_id,
+    title: cleanText(body.title, 160) || deriveSystemTitle(userInput),
+    system_json: normalized
   });
 
   let account = null;
@@ -831,9 +1286,22 @@ async function handleBuild(request, env) {
     account = await buildAccountView(env, subscriber);
   }
 
+  await incrementUserGenerationUsage(env, identity.user_id);
+  const usageMonth = currentUsageMonthKey();
+  const usageUsed = await readUserGenerationUsage(env, identity.user_id, usageMonth);
+
   return corsJson(request, env, {
     ok: true,
+    user_id: identity.user_id,
+    system_id: persisted.system_id,
+    version_number: persisted.version_number,
     system: normalized,
+    metadata: persisted.metadata,
+    next_actions: persisted.next_actions,
+    usage_hook: {
+      month: usageMonth,
+      generations_used: usageUsed
+    },
     billing_enforced: access.billing_enforced,
     account,
     trace: {
@@ -854,18 +1322,49 @@ async function handleRefine(request, env) {
     return access.response;
   }
 
+  ensureMemoryStoreConfigured(request, env);
+
   const subscriber = access.subscriber;
+  const identity = resolveRequestIdentity(request, subscriber);
 
   const body = await safeJson(request);
+  const systemId = cleanText(body.systemId, 120);
+  const submittedVersion = Number(body.versionNumber);
   const command = cleanText(body.command, 600);
-  const currentSystem = body.currentSystem;
+
+  if (!systemId) {
+    return corsJson(request, env, { ok: false, message: "Field systemId is required." }, 400);
+  }
+
+  if (!Number.isFinite(submittedVersion) || submittedVersion < 1) {
+    return corsJson(request, env, { ok: false, message: "Field versionNumber is required." }, 400);
+  }
 
   if (!command) {
     return corsJson(request, env, { ok: false, message: "Field command is required." }, 400);
   }
 
-  if (!currentSystem || typeof currentSystem !== "object") {
-    return corsJson(request, env, { ok: false, message: "Field currentSystem is required." }, 400);
+  const metadata = await getSystemMetadata(env, systemId);
+  if (!metadata || metadata.user_id !== identity.user_id) {
+    return corsJson(request, env, { ok: false, message: "System not found." }, 404);
+  }
+
+  const latestVersion = await getLatestSystemVersion(env, systemId, identity.user_id);
+  if (!latestVersion) {
+    return corsJson(request, env, { ok: false, message: "System version not found." }, 404);
+  }
+
+  if (submittedVersion !== Number(latestVersion.version_number)) {
+    return corsJson(
+      request,
+      env,
+      {
+        ok: false,
+        message: "Version conflict. Reload latest system before refining.",
+        latest_version_number: latestVersion.version_number
+      },
+      409
+    );
   }
 
   if (subscriber) {
@@ -888,17 +1387,30 @@ async function handleRefine(request, env) {
 
   const refinePayload = {
     action: "refine_existing_system",
+    user_id: identity.user_id,
+    system_id: systemId,
+    current_version_number: latestVersion.version_number,
+    refinement_rule: "Return the FULL system JSON contract. Partial diffs are invalid.",
     refinement_command: command,
     user_delta_context: cleanText(body.userDeltaContext, 2500),
-    current_system: currentSystem,
+    current_system: latestVersion.system_json,
     generated_at: new Date().toISOString()
   };
 
-  const generated = await callOpenAIForSystem(env, "refine", refinePayload);
-  const normalized = normalizeOutput(generated, {
+  const normalized = await generateValidatedSystem(env, {
     mode: "refine",
-    priorSystem: currentSystem,
-    sourceInput: command
+    payload: refinePayload,
+    sourceInput: command,
+    priorSystem: latestVersion.system_json,
+    options: {},
+    userId: identity.user_id
+  });
+
+  const persisted = await appendSystemVersion(env, {
+    user_id: identity.user_id,
+    system_id: systemId,
+    expected_current_version: latestVersion.version_number,
+    system_json: normalized
   });
 
   let account = null;
@@ -907,12 +1419,73 @@ async function handleRefine(request, env) {
     account = await buildAccountView(env, subscriber);
   }
 
+  await incrementUserGenerationUsage(env, identity.user_id);
+  const usageMonth = currentUsageMonthKey();
+  const usageUsed = await readUserGenerationUsage(env, identity.user_id, usageMonth);
+
   return corsJson(request, env, {
     ok: true,
+    user_id: identity.user_id,
+    system_id: persisted.system_id,
+    version_number: persisted.version_number,
     system: normalized,
+    metadata: persisted.metadata,
+    next_actions: persisted.next_actions,
+    usage_hook: {
+      month: usageMonth,
+      generations_used: usageUsed
+    },
     billing_enforced: access.billing_enforced,
     account
   });
+}
+
+async function generateValidatedSystem(env, input) {
+  const maxAttempts = 2;
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const correctiveInstruction =
+      attempt === 1
+        ? ""
+        : [
+            "Previous attempt returned invalid or partial JSON.",
+            "Return the FULL deterministic contract object with all required fields.",
+            "Do not return a diff, patch, or only changed fields."
+          ].join(" ");
+
+    try {
+      const generated = await callOpenAIForSystem(env, input.mode, input.payload, {
+        ...(input.options || {}),
+        correctiveInstruction,
+        forceFullContract: input.mode === "refine"
+      });
+
+      const rawValidation = validateRawModelOutput(generated);
+      if (!rawValidation.ok) {
+        throw new Error(rawValidation.message);
+      }
+
+      const normalized = normalizeOutput(generated, {
+        mode: input.mode,
+        priorSystem: input.priorSystem,
+        sourceInput: input.sourceInput,
+        userId: input.userId
+      });
+
+      const normalizedValidation = validateNormalizedSystem(normalized);
+      if (!normalizedValidation.ok) {
+        throw new Error(normalizedValidation.message);
+      }
+
+      return normalized;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  const detail = String(lastError && lastError.message ? lastError.message : lastError || "Validation failed");
+  throw new Error(`Model returned invalid or partial system JSON after retry. ${detail}`);
 }
 
 async function callOpenAIForSystem(env, mode, payload, options = {}) {
@@ -921,6 +1494,10 @@ async function callOpenAIForSystem(env, mode, payload, options = {}) {
   const userTextPayload = {
     mode,
     payload,
+    requirements: {
+      full_contract_required: Boolean(options.forceFullContract),
+      corrective_instruction: cleanText(options.correctiveInstruction, 600)
+    },
     contract: {
       opportunity_types: OPPORTUNITY_TYPES,
       clarity_levels: CLARITY_LEVELS,
@@ -1070,6 +1647,11 @@ function normalizeOutput(raw, context) {
     cleanText(safe.system_card.recommended_next_step, 500) ||
     "Confirm constraints and run the first pilot step.";
 
+  safe.recruitment_operating_system = normalizeRecruitmentOperatingSystem(
+    safe.recruitment_operating_system,
+    context.sourceInput
+  );
+
   safe.grounding_notes = ensureStringArray(safe.grounding_notes);
   if (!safe.grounding_notes.length) {
     safe.grounding_notes = [
@@ -1216,12 +1798,424 @@ function cleanText(value, limit) {
   return text.slice(0, limit);
 }
 
+function validateRawModelOutput(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return { ok: false, message: "Model output is not a JSON object." };
+  }
+
+  const requiredKeys = Array.isArray(OUTPUT_SCHEMA.schema.required) ? OUTPUT_SCHEMA.schema.required : [];
+  const missing = requiredKeys.filter((key) => !(key in raw));
+  if (missing.length) {
+    return {
+      ok: false,
+      message: `Model output is partial. Missing keys: ${missing.join(", ")}.`
+    };
+  }
+
+  if (!raw.version || typeof raw.version !== "object") {
+    return { ok: false, message: "Model output is missing version object." };
+  }
+
+  if (!Number.isFinite(Number(raw.version.revision || 0))) {
+    return { ok: false, message: "Model output has invalid version.revision." };
+  }
+
+  return { ok: true };
+}
+
+function validateNormalizedSystem(system) {
+  const rawValidation = validateRawModelOutput(system);
+  if (!rawValidation.ok) {
+    return rawValidation;
+  }
+
+  if (!system.system_card || typeof system.system_card !== "object") {
+    return { ok: false, message: "Normalized system is missing system_card." };
+  }
+
+  if (!system.recruitment_operating_system || typeof system.recruitment_operating_system !== "object") {
+    return { ok: false, message: "Normalized system is missing recruitment_operating_system." };
+  }
+
+  const recruitment = system.recruitment_operating_system;
+  const requiredRecruitmentKeys = [
+    "job_ad_diagnosis",
+    "blind_spot_diagnosis",
+    "hidden_success_profile",
+    "ideal_candidate_persona",
+    "wildcard_adjacent_profiles",
+    "sourcing_strategy",
+    "boolean_search_strings",
+    "screening_rubric",
+    "interview_questions",
+    "red_flags",
+    "outreach_message",
+    "shortlist_scorecard",
+    "search_sprint_21_day_plan",
+    "client_briefing_notes",
+    "hiring_operating_cadence"
+  ];
+
+  const missingRecruitment = requiredRecruitmentKeys.filter((key) => !(key in recruitment));
+  if (missingRecruitment.length) {
+    return {
+      ok: false,
+      message: `Recruitment contract missing keys: ${missingRecruitment.join(", ")}.`
+    };
+  }
+
+  return { ok: true };
+}
+
+function normalizeRecruitmentOperatingSystem(value, sourceInput) {
+  const fallback = createRecruitmentFallback(sourceInput);
+  const safe = value && typeof value === "object" ? value : {};
+
+  const blindSpots = safe.blind_spot_diagnosis && typeof safe.blind_spot_diagnosis === "object"
+    ? safe.blind_spot_diagnosis
+    : {};
+
+  const persona = safe.ideal_candidate_persona && typeof safe.ideal_candidate_persona === "object"
+    ? safe.ideal_candidate_persona
+    : {};
+
+  const sourcing = safe.sourcing_strategy && typeof safe.sourcing_strategy === "object"
+    ? safe.sourcing_strategy
+    : {};
+
+  const interview = safe.interview_questions && typeof safe.interview_questions === "object"
+    ? safe.interview_questions
+    : {};
+
+  const sprint = safe.search_sprint_21_day_plan && typeof safe.search_sprint_21_day_plan === "object"
+    ? safe.search_sprint_21_day_plan
+    : {};
+
+  const cadence = safe.hiring_operating_cadence && typeof safe.hiring_operating_cadence === "object"
+    ? safe.hiring_operating_cadence
+    : {};
+
+  return {
+    job_ad_diagnosis: cleanText(safe.job_ad_diagnosis, 1200) || fallback.job_ad_diagnosis,
+    blind_spot_diagnosis: {
+      stated_need: cleanText(blindSpots.stated_need, 900) || fallback.blind_spot_diagnosis.stated_need,
+      likely_real_need: cleanText(blindSpots.likely_real_need, 900) || fallback.blind_spot_diagnosis.likely_real_need,
+      false_assumptions: ensureStringArray(blindSpots.false_assumptions).length
+        ? ensureStringArray(blindSpots.false_assumptions)
+        : fallback.blind_spot_diagnosis.false_assumptions,
+      hidden_failure_modes: ensureStringArray(blindSpots.hidden_failure_modes).length
+        ? ensureStringArray(blindSpots.hidden_failure_modes)
+        : fallback.blind_spot_diagnosis.hidden_failure_modes,
+      wrong_candidate_risks: ensureStringArray(blindSpots.wrong_candidate_risks).length
+        ? ensureStringArray(blindSpots.wrong_candidate_risks)
+        : fallback.blind_spot_diagnosis.wrong_candidate_risks,
+      missing_success_definition: ensureStringArray(blindSpots.missing_success_definition).length
+        ? ensureStringArray(blindSpots.missing_success_definition)
+        : fallback.blind_spot_diagnosis.missing_success_definition,
+      compensation_or_level_mismatch: ensureStringArray(blindSpots.compensation_or_level_mismatch).length
+        ? ensureStringArray(blindSpots.compensation_or_level_mismatch)
+        : fallback.blind_spot_diagnosis.compensation_or_level_mismatch,
+      passive_candidate_reality: cleanText(blindSpots.passive_candidate_reality, 900)
+        || fallback.blind_spot_diagnosis.passive_candidate_reality,
+      corrected_search_thesis: cleanText(blindSpots.corrected_search_thesis, 1000)
+        || fallback.blind_spot_diagnosis.corrected_search_thesis
+    },
+    hidden_success_profile: cleanText(safe.hidden_success_profile, 1200) || fallback.hidden_success_profile,
+    ideal_candidate_persona: {
+      mission: cleanText(persona.mission, 600) || fallback.ideal_candidate_persona.mission,
+      must_have_competencies: ensureStringArray(persona.must_have_competencies).length
+        ? ensureStringArray(persona.must_have_competencies)
+        : fallback.ideal_candidate_persona.must_have_competencies,
+      domain_context: ensureStringArray(persona.domain_context).length
+        ? ensureStringArray(persona.domain_context)
+        : fallback.ideal_candidate_persona.domain_context,
+      first_90_day_outcomes: ensureStringArray(persona.first_90_day_outcomes).length
+        ? ensureStringArray(persona.first_90_day_outcomes)
+        : fallback.ideal_candidate_persona.first_90_day_outcomes
+    },
+    wildcard_adjacent_profiles: ensureStringArray(safe.wildcard_adjacent_profiles).length
+      ? ensureStringArray(safe.wildcard_adjacent_profiles)
+      : fallback.wildcard_adjacent_profiles,
+    sourcing_strategy: {
+      channels: ensureStringArray(sourcing.channels).length
+        ? ensureStringArray(sourcing.channels)
+        : fallback.sourcing_strategy.channels,
+      weekly_targets: ensureStringArray(sourcing.weekly_targets).length
+        ? ensureStringArray(sourcing.weekly_targets)
+        : fallback.sourcing_strategy.weekly_targets,
+      messaging_angles: ensureStringArray(sourcing.messaging_angles).length
+        ? ensureStringArray(sourcing.messaging_angles)
+        : fallback.sourcing_strategy.messaging_angles
+    },
+    boolean_search_strings: ensureStringArray(safe.boolean_search_strings).length
+      ? ensureStringArray(safe.boolean_search_strings)
+      : fallback.boolean_search_strings,
+    screening_rubric: normalizeRubricEntries(safe.screening_rubric, fallback.screening_rubric),
+    interview_questions: {
+      technical: ensureStringArray(interview.technical).length
+        ? ensureStringArray(interview.technical)
+        : fallback.interview_questions.technical,
+      behavioral: ensureStringArray(interview.behavioral).length
+        ? ensureStringArray(interview.behavioral)
+        : fallback.interview_questions.behavioral,
+      execution: ensureStringArray(interview.execution).length
+        ? ensureStringArray(interview.execution)
+        : fallback.interview_questions.execution,
+      stakeholder: ensureStringArray(interview.stakeholder).length
+        ? ensureStringArray(interview.stakeholder)
+        : fallback.interview_questions.stakeholder
+    },
+    red_flags: ensureStringArray(safe.red_flags).length ? ensureStringArray(safe.red_flags) : fallback.red_flags,
+    outreach_message: cleanText(safe.outreach_message, 1800) || fallback.outreach_message,
+    shortlist_scorecard: normalizeScorecardEntries(safe.shortlist_scorecard, fallback.shortlist_scorecard),
+    search_sprint_21_day_plan: {
+      week1: ensureStringArray(sprint.week1).length ? ensureStringArray(sprint.week1) : fallback.search_sprint_21_day_plan.week1,
+      week2: ensureStringArray(sprint.week2).length ? ensureStringArray(sprint.week2) : fallback.search_sprint_21_day_plan.week2,
+      week3: ensureStringArray(sprint.week3).length ? ensureStringArray(sprint.week3) : fallback.search_sprint_21_day_plan.week3
+    },
+    client_briefing_notes: cleanText(safe.client_briefing_notes, 1200) || fallback.client_briefing_notes,
+    hiring_operating_cadence: {
+      weekly: ensureStringArray(cadence.weekly).length ? ensureStringArray(cadence.weekly) : fallback.hiring_operating_cadence.weekly,
+      monthly: ensureStringArray(cadence.monthly).length ? ensureStringArray(cadence.monthly) : fallback.hiring_operating_cadence.monthly
+    }
+  };
+}
+
+function normalizeRubricEntries(value, fallback) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const normalized = value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const category = cleanText(entry.category, 200);
+      const weight = cleanText(entry.weight, 120);
+      const what = cleanText(entry.what_to_look_for, 600);
+      if (!category || !weight || !what) {
+        return null;
+      }
+
+      return {
+        category,
+        weight,
+        what_to_look_for: what
+      };
+    })
+    .filter(Boolean);
+
+  return normalized.length ? normalized : fallback;
+}
+
+function normalizeScorecardEntries(value, fallback) {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const normalized = value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const dimension = cleanText(entry.dimension, 200);
+      const description = cleanText(entry.description, 600);
+      if (!dimension || !description) {
+        return null;
+      }
+
+      return {
+        dimension,
+        description
+      };
+    })
+    .filter(Boolean);
+
+  return normalized.length ? normalized : fallback;
+}
+
+function createRecruitmentFallback(sourceInput) {
+  const source = cleanText(sourceInput, 800) || "The role brief is broad and missing measurable outcomes.";
+  return {
+    job_ad_diagnosis:
+      `Current brief analysis: ${source}. The ad is likely over-indexed on task lists and under-specified on outcomes, stakeholder map, and success metrics.`,
+    blind_spot_diagnosis: {
+      stated_need: "Recruiter is requesting fast delivery of a candidate matching visible job-ad criteria.",
+      likely_real_need: "Business likely needs a candidate profile defined by outcome ownership and failure-pattern resistance, not just listed tasks.",
+      false_assumptions: [
+        "Assumes title and seniority label are enough to predict success.",
+        "Assumes hiring-manager expectations are already calibrated.",
+        "Assumes active applicants represent top-of-market talent."
+      ],
+      hidden_failure_modes: [
+        "Role success criteria are unclear, so interviewers optimize for polish instead of execution signal.",
+        "Screening overweights charisma and under-tests operating discipline.",
+        "Stakeholder misalignment delays decisions and increases drop-off risk."
+      ],
+      wrong_candidate_risks: [
+        "Candidate with strong interview presence but weak process rigor.",
+        "Candidate optimized for transactional wins in a role requiring complex-cycle execution.",
+        "Candidate with title fit but low evidence of cross-functional influence."
+      ],
+      missing_success_definition: [
+        "No explicit 90-day outcomes.",
+        "No measurable quality bar for shortlist progression.",
+        "No agreed weighting for must-have competencies."
+      ],
+      compensation_or_level_mismatch: [
+        "Salary or title band may attract a different segment than the business actually needs.",
+        "Stated seniority may be inconsistent with scope complexity and expected ownership."
+      ],
+      passive_candidate_reality:
+        "Highest-fit candidates are often not actively applying; search strategy must target plateau-window passive talent.",
+      corrected_search_thesis:
+        "Target candidates proven in similar complexity who show disciplined pipeline execution, measurable role outcomes, and evidence of stakeholder alignment under ambiguity."
+    },
+    hidden_success_profile:
+      "Top performer profile: structured operator who can manage ambiguous hiring managers, convert requirements into scoreable criteria, and maintain weekly funnel momentum.",
+    ideal_candidate_persona: {
+      mission: "Build a reliable shortlist pipeline in 21 days while improving quality-of-hire signal.",
+      must_have_competencies: [
+        "Outcome-based role scoping",
+        "Boolean sourcing and channel diversification",
+        "Structured interviewing and debrief facilitation",
+        "Stakeholder expectation management"
+      ],
+      domain_context: [
+        "Comfort with technical and non-technical hiring briefs",
+        "Ability to convert vague role requests into scorecards",
+        "Experience in high-velocity search cycles"
+      ],
+      first_90_day_outcomes: [
+        "Reduce time-to-qualified-shortlist",
+        "Increase interview-to-offer conversion quality",
+        "Standardize screening rubrics across stakeholders"
+      ]
+    },
+    wildcard_adjacent_profiles: [
+      "Customer success leader with hiring ownership",
+      "Operations manager with domain hiring depth",
+      "Boutique agency researcher with high signal sourcing"
+    ],
+    sourcing_strategy: {
+      channels: [
+        "LinkedIn direct + talent pools",
+        "Specialist communities and niche boards",
+        "Internal referral acceleration campaign"
+      ],
+      weekly_targets: [
+        "40 qualified outreach messages/week",
+        "12 screening calls/week",
+        "4 calibrated shortlist candidates/week"
+      ],
+      messaging_angles: [
+        "Mission + impact narrative",
+        "Role ownership and growth scope",
+        "Specific value proposition by candidate segment"
+      ]
+    },
+    boolean_search_strings: [
+      "(\"talent acquisition\" OR recruiter) AND (\"stakeholder management\" OR \"hiring manager\") AND (boolean OR sourcing)",
+      "(\"technical recruiter\" OR \"search consultant\") AND (scorecard OR \"structured interview\")",
+      "(headhunter OR \"executive search\") AND (pipeline OR shortlist) AND (operations OR strategy)"
+    ],
+    screening_rubric: [
+      { category: "Role Scoping", weight: "25%", what_to_look_for: "Can translate vague briefs into measurable outcomes and constraints." },
+      { category: "Sourcing Discipline", weight: "25%", what_to_look_for: "Demonstrates multi-channel search design and iterative funnel tuning." },
+      { category: "Assessment Quality", weight: "30%", what_to_look_for: "Uses structured evidence capture and bias-resistant evaluation." },
+      { category: "Execution Cadence", weight: "20%", what_to_look_for: "Maintains weekly reporting rhythm and proactive risk management." }
+    ],
+    interview_questions: {
+      technical: [
+        "Walk through a difficult search where the brief changed mid-process. What did you adjust first?",
+        "How do you decide whether to widen or narrow a candidate persona after week one?"
+      ],
+      behavioral: [
+        "Tell us about a time a hiring manager disagreed with your shortlist. How did you resolve it?",
+        "Describe how you handled a near-offer candidate drop-off."
+      ],
+      execution: [
+        "What metrics do you monitor weekly to detect sourcing quality decay?",
+        "How do you prioritize outreach segments when bandwidth is tight?"
+      ],
+      stakeholder: [
+        "How do you calibrate interviewers who score inconsistently?",
+        "What does a high-quality weekly hiring update include?"
+      ]
+    },
+    red_flags: [
+      "Cannot articulate role outcomes beyond job description bullets",
+      "No evidence of structured scorecard or calibration process",
+      "Over-reliance on one sourcing channel",
+      "Weak examples of stakeholder conflict management"
+    ],
+    outreach_message:
+      "Hi {{first_name}}, your track record in building high-signal candidate pipelines stood out. We are hiring for a role that owns end-to-end search strategy and stakeholder calibration, with direct impact on speed and quality of hires. If a role with autonomy, measurable outcomes, and visible business impact is interesting, I can share a concise brief.",
+    shortlist_scorecard: [
+      { dimension: "Role Fit", description: "Alignment with must-have competencies and role outcomes." },
+      { dimension: "Execution Signal", description: "Evidence of operating cadence, metrics, and process ownership." },
+      { dimension: "Stakeholder Influence", description: "Ability to align cross-functional interview teams." },
+      { dimension: "Risk", description: "Potential concerns and mitigation actions before final interview." }
+    ],
+    search_sprint_21_day_plan: {
+      week1: [
+        "Finalize success profile and calibration rubric",
+        "Launch channel matrix and first outreach batch",
+        "Run first shortlist quality checkpoint"
+      ],
+      week2: [
+        "Adjust persona based on response/quality data",
+        "Expand adjacent wildcard profiles",
+        "Run interviewer calibration workshop"
+      ],
+      week3: [
+        "Deliver final shortlist with scorecards",
+        "Pre-close top candidates with tailored value narrative",
+        "Submit post-sprint recommendations for cadence optimization"
+      ]
+    },
+    client_briefing_notes:
+      "Client briefing should align on non-negotiables, interview ownership, compensation boundaries, and weekly decision SLAs. Include explicit fallback candidate profile before search launch.",
+    hiring_operating_cadence: {
+      weekly: [
+        "Monday: pipeline review and blockers",
+        "Wednesday: shortlist calibration",
+        "Friday: client decision checkpoint"
+      ],
+      monthly: [
+        "Funnel quality retrospective",
+        "Source performance ranking update",
+        "Interview rubric tuning"
+      ]
+    }
+  };
+}
+
 function isBillingEnforced(env) {
   return String(env.BILLING_ENFORCED || "false").trim().toLowerCase() === "true";
 }
 
 function hasBillingStore(env) {
   return Boolean(env.SUBSCRIBER_KV);
+}
+
+function getMemoryStore(env) {
+  return env.SYSTEM_MEMORY_KV || env.SUBSCRIBER_KV || null;
+}
+
+function hasMemoryStore(env) {
+  return Boolean(getMemoryStore(env));
+}
+
+function ensureMemoryStoreConfigured(request, env) {
+  if (!hasMemoryStore(env)) {
+    const error = new Error("System memory store is not configured. Bind SYSTEM_MEMORY_KV or SUBSCRIBER_KV.");
+    error.statusCode = 503;
+    throw error;
+  }
 }
 
 function hasSessionSecret(env) {
@@ -1366,6 +2360,32 @@ async function checkGenerationQuota(env, subscriber) {
     month_key: monthKey,
     reset_at: usageResetIso()
   };
+}
+
+function userUsageCounterKey(userId, monthKey) {
+  return `usage:user:${cleanText(userId, 120)}:${monthKey}`;
+}
+
+async function readUserGenerationUsage(env, userId, monthKey = currentUsageMonthKey()) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return 0;
+  }
+
+  const raw = await store.get(userUsageCounterKey(userId, monthKey));
+  const value = Number(raw || "0");
+  return Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
+async function incrementUserGenerationUsage(env, userId) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return;
+  }
+
+  const monthKey = currentUsageMonthKey();
+  const current = await readUserGenerationUsage(env, userId, monthKey);
+  await store.put(userUsageCounterKey(userId, monthKey), String(current + 1));
 }
 
 function resolveUpgradeUrl(env, currentPlan) {
@@ -1662,6 +2682,44 @@ function readAuthToken(request) {
   return fallback.trim();
 }
 
+function normalizeUserId(value) {
+  const id = String(value || "").trim();
+  if (!id) {
+    return "";
+  }
+
+  if (/^[a-z0-9][a-z0-9\-_:.]{5,120}$/i.test(id)) {
+    return id.slice(0, 120);
+  }
+
+  return "";
+}
+
+function resolveRequestIdentity(request, subscriber) {
+  const headerUserId = normalizeUserId(request.headers.get("x-o2o-user-id"));
+  if (headerUserId) {
+    return {
+      user_id: headerUserId,
+      source: "header"
+    };
+  }
+
+  if (subscriber && subscriber.subscriber_id) {
+    return {
+      user_id: `user-sub-${cleanText(subscriber.subscriber_id, 80)}`,
+      source: "subscriber"
+    };
+  }
+
+  const ip = cleanText(request.headers.get("CF-Connecting-IP"), 80).replace(/[^0-9a-z.:_-]/gi, "");
+  const userAgent = cleanText(request.headers.get("User-Agent"), 80).replace(/[^0-9a-z]/gi, "");
+  const fallbackSeed = `${ip || "unknown"}-${userAgent || "agent"}`;
+  return {
+    user_id: `anon-${fallbackSeed}`.slice(0, 120),
+    source: "fallback"
+  };
+}
+
 async function issueSessionToken(env, payload) {
   const subscriberId = cleanText(payload && payload.subscriber_id, 180);
   if (!subscriberId) {
@@ -1910,6 +2968,450 @@ function base64UrlDecodeString(value) {
   return new TextDecoder().decode(bytes);
 }
 
+function systemMetadataKey(systemId) {
+  return `memory:system:${cleanText(systemId, 120)}:meta`;
+}
+
+function systemVersionKey(systemId, versionNumber) {
+  return `memory:system:${cleanText(systemId, 120)}:version:${Number(versionNumber)}`;
+}
+
+function userSystemsKey(userId) {
+  return `memory:user:${cleanText(userId, 120)}:systems`;
+}
+
+function systemNextActionsKey(systemId) {
+  return `memory:system:${cleanText(systemId, 120)}:next_actions`;
+}
+
+async function getSystemMetadata(env, systemId) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return null;
+  }
+
+  const raw = await store.get(systemMetadataKey(systemId));
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function putSystemMetadata(env, metadata) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return;
+  }
+
+  await store.put(systemMetadataKey(metadata.id), JSON.stringify(metadata));
+}
+
+async function getSystemVersion(env, systemId, versionNumber) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return null;
+  }
+
+  const raw = await store.get(systemVersionKey(systemId, versionNumber));
+  if (!raw) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+async function putSystemVersion(env, versionEntry) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return;
+  }
+
+  await store.put(
+    systemVersionKey(versionEntry.system_id, versionEntry.version_number),
+    JSON.stringify(versionEntry)
+  );
+}
+
+async function listSystemsForUser(env, userId) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return [];
+  }
+
+  const raw = await store.get(userSystemsKey(userId));
+  const ids = raw ? safeJsonParseArray(raw) : [];
+
+  const systems = [];
+  for (const id of ids) {
+    const metadata = await getSystemMetadata(env, id);
+    if (!metadata || metadata.user_id !== userId) {
+      continue;
+    }
+    systems.push(metadata);
+  }
+
+  return systems;
+}
+
+async function saveUserSystemsIndex(env, userId, systemIds) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return;
+  }
+
+  const unique = Array.from(new Set(systemIds.map((id) => cleanText(id, 120)).filter(Boolean)));
+  await store.put(userSystemsKey(userId), JSON.stringify(unique));
+}
+
+async function addUserSystemIndex(env, userId, systemId) {
+  const current = (await listSystemsForUser(env, userId)).map((item) => item.id);
+  if (!current.includes(systemId)) {
+    current.push(systemId);
+  }
+  await saveUserSystemsIndex(env, userId, current);
+}
+
+async function getLatestSystemVersion(env, systemId, userId) {
+  const metadata = await getSystemMetadata(env, systemId);
+  if (!metadata || metadata.user_id !== userId) {
+    return null;
+  }
+
+  return getSystemVersion(env, systemId, metadata.latest_version_number);
+}
+
+function normalizeNextActions(items, context) {
+  if (!Array.isArray(items)) {
+    return [];
+  }
+
+  const now = cleanText(context.now, 80) || new Date().toISOString();
+  return items
+    .map((item) => {
+      if (typeof item === "string") {
+        return {
+          id: `act_${crypto.randomUUID()}`,
+          system_id: context.system_id,
+          user_id: context.user_id,
+          description: cleanText(item, 500),
+          owner: "Unassigned",
+          due_date: "",
+          status: "pending",
+          created_at: now,
+          updated_at: now
+        };
+      }
+
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const description = cleanText(item.description || item.action || item.task, 500);
+      if (!description) {
+        return null;
+      }
+
+      const status = cleanText(item.status, 30).toLowerCase();
+      const normalizedStatus = ["pending", "done", "overdue"].includes(status) ? status : "pending";
+      const dueDate = cleanText(item.due_date || item.dueDate, 20);
+
+      return {
+        id: cleanText(item.id, 120) || `act_${crypto.randomUUID()}`,
+        system_id: context.system_id,
+        user_id: context.user_id,
+        description,
+        owner: cleanText(item.owner, 120) || "Unassigned",
+        due_date: dueDate,
+        status: normalizedStatus,
+        created_at: cleanText(item.created_at, 80) || now,
+        updated_at: now
+      };
+    })
+    .filter(Boolean);
+}
+
+async function getNextActions(env, systemId, userId) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return [];
+  }
+
+  const raw = await store.get(systemNextActionsKey(systemId));
+  if (!raw) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.filter((action) => action && action.user_id === userId);
+  } catch {
+    return [];
+  }
+}
+
+async function setNextActions(env, systemId, userId, actions) {
+  const store = getMemoryStore(env);
+  if (!store) {
+    return;
+  }
+
+  const normalized = normalizeNextActions(actions, {
+    system_id: systemId,
+    user_id: userId,
+    now: new Date().toISOString()
+  });
+
+  await store.put(systemNextActionsKey(systemId), JSON.stringify(normalized));
+}
+
+async function createSystemWithFirstVersion(env, input) {
+  const now = new Date().toISOString();
+  const systemId = cleanText(input.system_json && input.system_json.version && input.system_json.version.system_id, 120)
+    || `sys_${crypto.randomUUID()}`;
+
+  input.system_json.version.system_id = systemId;
+  input.system_json.version.revision = 1;
+  input.system_json.version.generated_at = now;
+
+  const metadata = {
+    id: systemId,
+    user_id: input.user_id,
+    title: cleanText(input.title, 160) || "Untitled Recruitment System",
+    created_at: now,
+    updated_at: now,
+    status: "active",
+    last_viewed_at: now,
+    latest_version_number: 1,
+    summary: summarizeSystem(input.system_json)
+  };
+
+  const versionEntry = {
+    id: `ver_${crypto.randomUUID()}`,
+    system_id: systemId,
+    user_id: input.user_id,
+    version_number: 1,
+    system_json: input.system_json,
+    created_at: now
+  };
+
+  await putSystemMetadata(env, metadata);
+  await putSystemVersion(env, versionEntry);
+  await addUserSystemIndex(env, input.user_id, systemId);
+
+  const nextActions = normalizeNextActions(input.system_json.next_actions, {
+    system_id: systemId,
+    user_id: input.user_id,
+    now
+  });
+  await setNextActions(env, systemId, input.user_id, nextActions);
+
+  return {
+    system_id: systemId,
+    version_number: 1,
+    metadata,
+    next_actions: nextActions
+  };
+}
+
+async function appendSystemVersion(env, input) {
+  const now = new Date().toISOString();
+  const metadata = await getSystemMetadata(env, input.system_id);
+  if (!metadata || metadata.user_id !== input.user_id) {
+    throw new Error("System not found.");
+  }
+
+  if (Number(metadata.latest_version_number) !== Number(input.expected_current_version)) {
+    const error = new Error("Version conflict. Reload latest system before refining.");
+    error.statusCode = 409;
+    throw error;
+  }
+
+  const nextVersion = Number(metadata.latest_version_number) + 1;
+  input.system_json.version.system_id = input.system_id;
+  input.system_json.version.revision = nextVersion;
+  input.system_json.version.generated_at = now;
+
+  const versionEntry = {
+    id: `ver_${crypto.randomUUID()}`,
+    system_id: input.system_id,
+    user_id: input.user_id,
+    version_number: nextVersion,
+    system_json: input.system_json,
+    created_at: now
+  };
+
+  await putSystemVersion(env, versionEntry);
+
+  metadata.latest_version_number = nextVersion;
+  metadata.updated_at = now;
+  metadata.last_viewed_at = now;
+  metadata.summary = summarizeSystem(input.system_json);
+  await putSystemMetadata(env, metadata);
+
+  const nextActions = normalizeNextActions(input.system_json.next_actions, {
+    system_id: input.system_id,
+    user_id: input.user_id,
+    now
+  });
+  await setNextActions(env, input.system_id, input.user_id, nextActions);
+
+  return {
+    system_id: input.system_id,
+    version_number: nextVersion,
+    metadata,
+    next_actions: nextActions
+  };
+}
+
+function summarizeSystem(system) {
+  if (!system || typeof system !== "object") {
+    return "No summary available.";
+  }
+
+  const summary = cleanText(system.executive_summary, 420);
+  if (summary) {
+    return summary;
+  }
+
+  const diagnosis = system.system_card && typeof system.system_card === "object"
+    ? cleanText(system.system_card.recommended_next_step, 420)
+    : "";
+  return diagnosis || "Recruitment operating system ready for execution.";
+}
+
+function deriveSystemTitle(userInput) {
+  const text = cleanText(userInput, 180);
+  if (!text) {
+    return "Recruitment Operating System";
+  }
+
+  const firstLine = text.split(/[\r\n]+/)[0];
+  return cleanText(firstLine, 80) || "Recruitment Operating System";
+}
+
+function safeFileName(value) {
+  const cleaned = String(value || "o2o-system")
+    .replace(/[^a-z0-9\-_ ]/gi, "")
+    .trim()
+    .replace(/\s+/g, "-")
+    .slice(0, 80);
+  return cleaned || "o2o-system";
+}
+
+function buildSystemMarkdown(system, metadata, nextActions = []) {
+  const safeSystem = system && typeof system === "object" ? system : {};
+  const card = safeSystem.system_card && typeof safeSystem.system_card === "object" ? safeSystem.system_card : {};
+  const recruitment = safeSystem.recruitment_operating_system && typeof safeSystem.recruitment_operating_system === "object"
+    ? safeSystem.recruitment_operating_system
+    : createRecruitmentFallback("");
+  const blindSpots = recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+    ? recruitment.blind_spot_diagnosis
+    : createRecruitmentFallback("").blind_spot_diagnosis;
+
+  const lines = [];
+  lines.push(`# ${metadata && metadata.title ? metadata.title : "O2O Recruitment Operating System"}`);
+  lines.push("");
+  lines.push(`Generated: ${safeSystem.version && safeSystem.version.generated_at ? safeSystem.version.generated_at : new Date().toISOString()}`);
+  lines.push("");
+  lines.push("## System Card");
+  lines.push(`- Opportunity Type: ${card.opportunity_type || ""}`);
+  lines.push(`- Clarity Level: ${card.clarity_level || ""}`);
+  lines.push(`- Output Pathway: ${card.output_pathway || ""}`);
+  lines.push(`- Confidence: ${card.confidence_level || ""}`);
+  lines.push(`- Recommended Next Step: ${card.recommended_next_step || ""}`);
+  lines.push("");
+  lines.push("## Executive Summary");
+  lines.push(safeSystem.executive_summary || "");
+  lines.push("");
+  lines.push("## Recruitment Operating System");
+  lines.push("### Job Ad Diagnosis");
+  lines.push(recruitment.job_ad_diagnosis || "");
+  lines.push("");
+  lines.push("### Blind Spot Diagnosis");
+  lines.push(`- Stated Need: ${blindSpots.stated_need || ""}`);
+  lines.push(`- Likely Real Need: ${blindSpots.likely_real_need || ""}`);
+  appendBullets(lines, blindSpots.false_assumptions, "False Assumptions");
+  appendBullets(lines, blindSpots.hidden_failure_modes, "Hidden Failure Modes");
+  appendBullets(lines, blindSpots.wrong_candidate_risks, "Wrong-Candidate Risks");
+  appendBullets(lines, blindSpots.missing_success_definition, "Missing Success Definition");
+  appendBullets(lines, blindSpots.compensation_or_level_mismatch, "Market Reality Check");
+  lines.push("### Passive Candidate Reality");
+  lines.push(blindSpots.passive_candidate_reality || "");
+  lines.push("### Corrected Search Thesis");
+  lines.push(blindSpots.corrected_search_thesis || "");
+  lines.push("");
+  lines.push("### Hidden Success Profile");
+  lines.push(recruitment.hidden_success_profile || "");
+  lines.push("");
+  lines.push("### Ideal Candidate Persona");
+  lines.push(`- Mission: ${recruitment.ideal_candidate_persona && recruitment.ideal_candidate_persona.mission ? recruitment.ideal_candidate_persona.mission : ""}`);
+  appendBullets(lines, recruitment.ideal_candidate_persona && recruitment.ideal_candidate_persona.must_have_competencies, "Must-have Competencies");
+  appendBullets(lines, recruitment.ideal_candidate_persona && recruitment.ideal_candidate_persona.domain_context, "Domain Context");
+  appendBullets(lines, recruitment.ideal_candidate_persona && recruitment.ideal_candidate_persona.first_90_day_outcomes, "First 90-Day Outcomes");
+  lines.push("");
+  appendBullets(lines, recruitment.wildcard_adjacent_profiles, "Wildcard / Adjacent Profiles");
+  lines.push("");
+  appendBullets(lines, recruitment.boolean_search_strings, "Boolean Search Strings");
+  lines.push("");
+  appendBullets(lines, recruitment.red_flags, "Red Flags");
+  lines.push("");
+  lines.push("### Outreach Message");
+  lines.push(recruitment.outreach_message || "");
+  lines.push("");
+  lines.push("### 21-Day Search Sprint");
+  appendBullets(lines, recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week1, "Week 1");
+  appendBullets(lines, recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week2, "Week 2");
+  appendBullets(lines, recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week3, "Week 3");
+  lines.push("");
+  lines.push("## Next Actions");
+  if (!Array.isArray(nextActions) || !nextActions.length) {
+    lines.push("- None yet.");
+  } else {
+    for (const action of nextActions) {
+      lines.push(`- ${action.description} (Owner: ${action.owner || "Unassigned"}, Due: ${action.due_date || "TBD"}, Status: ${action.status || "pending"})`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+function appendBullets(lines, items, heading) {
+  lines.push(`### ${heading}`);
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  if (!list.length) {
+    lines.push("- None");
+    return;
+  }
+
+  for (const item of list) {
+    lines.push(`- ${String(item)}`);
+  }
+}
+
+function safeJsonParseArray(raw) {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function normalizeImageContext(value, maxBytes = MAX_IMAGE_BYTES) {
   if (!value || typeof value !== "object") {
     return null;
@@ -2005,7 +3507,7 @@ function corsResponse(request, env, response) {
 
   headers.set("Access-Control-Allow-Origin", origin);
   headers.set("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-  headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization");
+  headers.set("Access-Control-Allow-Headers", "Content-Type,Authorization,x-o2o-user-id,x-o2o-access-token");
   headers.set("Vary", "Origin");
 
   return new Response(response.body, {
