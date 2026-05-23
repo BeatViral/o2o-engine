@@ -280,7 +280,7 @@ async function handleBuild(options = {}) {
     renderSystem(data.system);
     setOutputEmptyState(false);
     setStatus(
-      `Built ${data.system.system_card.output_pathway} (confidence ${data.system.system_card.confidence_level})`,
+      `Built ${formatBuildTrack(data.system.system_card.output_pathway)} (confidence ${data.system.system_card.confidence_level})`,
       "success"
     );
   } catch (error) {
@@ -949,7 +949,7 @@ function runRecruitmentDemo() {
     elements.constraintsInput.value = "1 recruiter, 1 hiring manager, shortlist in 21 days, no paid tools";
   }
   if (elements.contextInput) {
-    elements.contextInput.value = "Vertical: recruitment/headhunting. Surface blind spots first, then build copy-pasteable execution artifacts for a serious recruiter.";
+    elements.contextInput.value = "Recruitment focus: surface blind spots first, then build copy-pasteable execution artifacts for a serious recruiter.";
   }
 
   renderLiveCardPreview();
@@ -1358,210 +1358,6 @@ function renderSystem(system) {
   `;
 
   elements.outputSection.scrollIntoView({ behavior: "smooth", block: "start" });
-}
-
-function renderWorkflowSteps(steps) {
-  if (!steps.length) {
-    return "<p>No workflow steps provided.</p>";
-  }
-
-  return steps
-    .map((step, index) => {
-      return `
-      <div class="kv">
-        <strong>Step ${index + 1}</strong>
-        <span>${escapeHtml(step.step || "")}</span>
-        <h4>AI Responsibilities</h4>
-        ${renderList(step.ai_responsibilities)}
-        <h4>Human Responsibilities</h4>
-        ${renderList(step.human_responsibilities)}
-        <h4>Tools</h4>
-        ${renderList(step.tools)}
-        <h4>Quality Checks</h4>
-        ${renderList(step.quality_checks)}
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderAiUseCases(items) {
-  if (!items.length) {
-    return "<p>No AI use cases provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.use_case || "Use case")}</strong>
-        <span>${escapeHtml(item.function || "")}</span>
-        <h4>Data Inputs</h4>
-        ${renderList(item.data_inputs)}
-        <h4>AI Output</h4>
-        <p>${escapeHtml(item.ai_output || "")}</p>
-        <h4>Human Oversight</h4>
-        <p>${escapeHtml(item.human_oversight || "")}</p>
-        <p>${renderBadge(item.priority_label)}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderControls(items) {
-  if (!items.length) {
-    return "<p>No control points provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.control_point || "Control")}</strong>
-        <span>${escapeHtml(item.human_role || "")}</span>
-        <h4>Approval Rule</h4>
-        <p>${escapeHtml(item.approval_rule || "")}</p>
-        <h4>Override Rule</h4>
-        <p>${escapeHtml(item.override_rule || "")}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderTeamRoles(items) {
-  if (!items.length) {
-    return "<p>No team roles provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.role || "Role")}</strong>
-        ${renderList(item.responsibilities)}
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderSopDrafts(items) {
-  if (!items.length) {
-    return "<p>No SOP drafts provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.sop_name || "SOP")}</strong>
-        <h4>Purpose</h4>
-        <p>${escapeHtml(item.purpose || "")}</p>
-        <h4>Trigger</h4>
-        <p>${escapeHtml(item.trigger || "")}</p>
-        <h4>Steps</h4>
-        ${renderList(item.steps)}
-        <h4>Quality Gate</h4>
-        <p>${escapeHtml(item.quality_gate || "")}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderTimeline(items) {
-  const timeline = toArray(items);
-  if (!timeline.length) {
-    return "<p>No timeline provided.</p>";
-  }
-
-  return timeline
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.window || "Window")}</strong>
-        <h4>Tasks</h4>
-        ${renderList(item.tasks)}
-        <h4>Owner</h4>
-        <p>${escapeHtml(item.owner || "")}</p>
-        <h4>Output</h4>
-        <p>${escapeHtml(item.output || "")}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderMetrics(items) {
-  if (!items.length) {
-    return "<p>No metrics provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.metric || "Metric")}</strong>
-        <h4>Definition</h4>
-        <p>${escapeHtml(item.definition || "")}</p>
-        <h4>Target</h4>
-        <p>${escapeHtml(item.target || "")}</p>
-        <h4>Owner</h4>
-        <p>${escapeHtml(item.owner || "")}</p>
-        <h4>Cadence</h4>
-        <p>${escapeHtml(item.cadence || "")}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderRisks(items) {
-  if (!items.length) {
-    return "<p>No risks provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.risk || "Risk")}</strong>
-        <p>${renderBadge(item.likelihood_label)} ${renderBadge(item.impact_label)}</p>
-        <h4>Control</h4>
-        <p>${escapeHtml(item.control || "")}</p>
-        <h4>Owner</h4>
-        <p>${escapeHtml(item.owner || "")}</p>
-      </div>
-    `;
-    })
-    .join("");
-}
-
-function renderPrioritization(items) {
-  if (!items.length) {
-    return "<p>No prioritization entries provided.</p>";
-  }
-
-  return items
-    .map((item) => {
-      return `
-      <div class="kv">
-        <strong>${escapeHtml(item.recommendation || "Recommendation")}</strong>
-        <p>
-          ${renderBadge(item.priority_label)}
-          ${renderBadge(item.impact)}
-          ${renderBadge(item.effort)}
-          ${renderBadge(item.risk)}
-          ${renderBadge(item.time_to_test)}
-          ${renderBadge(item.ai_suitability)}
-          ${renderBadge(item.human_oversight_required)}
-        </p>
-      </div>
-    `;
-    })
-    .join("");
 }
 
 function renderRecruitmentRubric(items) {
