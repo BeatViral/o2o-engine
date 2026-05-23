@@ -164,6 +164,10 @@ function initialize() {
     elements.downloadPdfBtn.addEventListener("click", downloadCurrentSystemPdf);
   }
 
+  if (elements.output) {
+    elements.output.addEventListener("click", handleOutputActions);
+  }
+
   renderLiveCardPreview();
   renderDemoVideoSlot();
   setOutputEmptyState(true);
@@ -1081,6 +1085,39 @@ function setOutputEmptyState(isEmpty) {
   }
 }
 
+async function handleOutputActions(event) {
+  const target = event.target;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+
+  const copyButton = target.closest("[data-copy-boolean]");
+  if (!(copyButton instanceof HTMLButtonElement)) {
+    return;
+  }
+
+  const encodedValue = String(copyButton.getAttribute("data-copy-boolean") || "");
+  const decodedValue = decodeURIComponent(encodedValue);
+  if (!decodedValue.trim()) {
+    return;
+  }
+
+  const originalLabel = copyButton.textContent || "Copy";
+
+  try {
+    await navigator.clipboard.writeText(decodedValue);
+    copyButton.textContent = "Copied";
+    copyButton.disabled = true;
+    setTimeout(() => {
+      copyButton.textContent = originalLabel;
+      copyButton.disabled = false;
+    }, 1200);
+    setStatus("Boolean string copied to clipboard", "success");
+  } catch (error) {
+    setStatus(error.message || "Could not copy Boolean string", "error");
+  }
+}
+
 async function copyCurrentSystemMarkdown() {
   if (!state.currentSystem) {
     setStatus("No system available to export yet", "warning");
@@ -1225,18 +1262,18 @@ function formatBuildTrack(pathway) {
   const value = String(pathway || "").trim();
 
   if (value === "Discovery System") {
-    return "Blind-Spot Diagnosis First";
+    return "Start With Risk Check";
   }
 
   if (value === "Workflow System") {
-    return "Recruiter Workflow Build";
+    return "Build Core Hiring Steps";
   }
 
   if (value === "Full Operating System") {
-    return "Full Recruiter Operating System";
+    return "Build Full Hiring Plan";
   }
 
-  return value || "Recruiter Workflow Build";
+  return value || "Build Core Hiring Steps";
 }
 
 function renderLiveCardPreview() {
@@ -1260,16 +1297,16 @@ function renderLiveCardPreview() {
     elements.liveCard.innerHTML = `
       <div class="preview-grid">
         <div class="preview-sample">
-          <h4>Sample While Idle</h4>
-          <p>Input: Senior AE brief is vague and keeps producing weak shortlists.</p>
+          <h4>Example Preview</h4>
+          <p>Input is vague and likely to attract the wrong candidates.</p>
           <ul class="preview-sample-list">
-            <li>Diagnosis: brief has hidden failure assumptions.</li>
-            <li>Build Track: Full Recruiter Operating System.</li>
-            <li>Output: corrected thesis, rubric, interview, outreach, and 21-day sprint.</li>
+            <li>Risk check: what is missing in the brief.</li>
+            <li>Plan mode: full hiring plan.</li>
+            <li>Output: profile, search strings, scorecard, interview, and a 21-day plan.</li>
           </ul>
         </div>
         <div class="preview-row">
-          <h4>Search Type</h4>
+          <h4>Hiring Type</h4>
           <p>Recruitment / Headhunting</p>
         </div>
         <div class="preview-row">
@@ -1277,8 +1314,8 @@ function renderLiveCardPreview() {
           <p>Series A-B</p>
         </div>
         <div class="preview-row">
-          <h4>Build Track</h4>
-          <p>Full Recruiter Operating System</p>
+          <h4>Plan Mode</h4>
+          <p>Build Full Hiring Plan</p>
         </div>
         <div class="preview-row">
           <h4>Confidence</h4>
@@ -1292,13 +1329,13 @@ function renderLiveCardPreview() {
   const roleSnapshot = [roleTitle || "Role pending", industry || "Industry pending"].join(" • ");
   const nextStep =
     pathway === "Discovery System"
-      ? "Run blind-spot diagnosis and lock the corrected search thesis before sourcing."
-      : "Generate screening rubric, interview calibration, and 21-day execution cadence.";
+      ? "Start with risk check and lock the hiring direction before sourcing."
+      : "Build scorecard, interview plan, and a 21-day hiring plan.";
 
   elements.liveCard.innerHTML = `
     <div class="preview-grid">
       <div class="preview-row">
-        <h4>Search Type</h4>
+        <h4>Hiring Type</h4>
         <p>${escapeHtml(searchType)}</p>
       </div>
       <div class="preview-row">
@@ -1310,11 +1347,11 @@ function renderLiveCardPreview() {
         <p>${escapeHtml(companyStage || "Not set")}</p>
       </div>
       <div class="preview-row">
-        <h4>Brief Clarity</h4>
+        <h4>How Clear Is the Brief</h4>
         <p>${escapeHtml(clarity)}</p>
       </div>
       <div class="preview-row">
-        <h4>Build Track</h4>
+        <h4>Plan Mode</h4>
         <p>${escapeHtml(formatBuildTrack(pathway))}</p>
       </div>
       <div class="preview-row">
@@ -1322,7 +1359,7 @@ function renderLiveCardPreview() {
         <p>${escapeHtml(confidence)}</p>
       </div>
       <div class="preview-row">
-        <h4>Recommended Next Step</h4>
+        <h4>Next Step</h4>
         <p>${escapeHtml(nextStep)}</p>
       </div>
     </div>
@@ -1340,167 +1377,406 @@ function renderSystem(system) {
   const groundingNotes = toArray(system.grounding_notes);
 
   const version = system.version || { revision: 1, generated_at: "" };
+  const generatedAt = formatResetDate(version.generated_at);
+  const riskScan = computeRiskScan(card, blindSpots);
 
   elements.outputSection.hidden = false;
   setOutputEmptyState(false);
   elements.output.innerHTML = `
-    <div class="result-grid">
-      <article class="result-card">
-        <h3>Recruiter Search Card</h3>
-        <div class="kv-grid">
-          <div class="kv"><strong>Search Type</strong><span>${escapeHtml(card.opportunity_type)}</span></div>
-          <div class="kv"><strong>Brief Clarity</strong><span>${escapeHtml(card.clarity_level)}</span></div>
-          <div class="kv"><strong>Build Track</strong><span>${escapeHtml(formatBuildTrack(card.output_pathway))}</span></div>
-          <div class="kv"><strong>Confidence</strong><span>${renderBadge(card.confidence_level)}</span></div>
-          <div class="kv"><strong>Revision</strong><span>${escapeHtml(String(version.revision || "1"))}</span></div>
-          <div class="kv"><strong>Generated At</strong><span>${escapeHtml(version.generated_at || "")}</span></div>
+    <div class="diagnostic-output-shell">
+      <section class="panel risk-scan-panel fade-in-diagnosis">
+        <div class="risk-scan-head">
+          <p class="diagnosis-kicker">Quick Risk Check</p>
+          <h3>Check Risk Before You Search</h3>
+          <p class="risk-scan-note">This scorecard shows where the brief is likely to fail.</p>
         </div>
-        <h4>Key Assumptions</h4>
-        ${renderList(card.key_assumptions)}
-        <h4>Missing Information</h4>
-        ${renderList(card.missing_information)}
-        <h4>Recommended Next Step</h4>
-        <p>${escapeHtml(card.recommended_next_step || "")}</p>
-      </article>
-
-      <article class="result-card">
-        <h3>Recruitment Operating System</h3>
-        <h4>Job Ad Diagnosis</h4>
-        <p>${escapeHtml(recruitment.job_ad_diagnosis || "")}</p>
-        <h4>Blind Spot Diagnosis</h4>
-        <div class="kv-grid">
-          <div class="kv"><strong>Stated Need</strong><span>${escapeHtml(blindSpots.stated_need || "")}</span></div>
-          <div class="kv"><strong>Likely Real Need</strong><span>${escapeHtml(blindSpots.likely_real_need || "")}</span></div>
+        <div class="risk-metric-grid">
+          ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
+          ${renderRiskMetric("Success Clarity", riskScan.successDefinitionScore)}
+          ${renderRiskMetric("Market Match", riskScan.candidateMarketAlignmentScore)}
         </div>
-        <h4>False Assumptions</h4>
-        ${renderList(blindSpots.false_assumptions)}
-        <h4>Hidden Failure Modes</h4>
-        ${renderList(blindSpots.hidden_failure_modes)}
-        <h4>Wrong-Candidate Risks</h4>
-        ${renderList(blindSpots.wrong_candidate_risks)}
-        <h4>Missing Success Definition</h4>
-        ${renderList(blindSpots.missing_success_definition)}
-        <h4>Market Reality Check</h4>
-        ${renderList(blindSpots.compensation_or_level_mismatch)}
-        <h4>Passive Candidate Reality</h4>
-        <p>${escapeHtml(blindSpots.passive_candidate_reality || "")}</p>
-        <h4>Corrected Search Thesis</h4>
-        <p>${escapeHtml(blindSpots.corrected_search_thesis || "")}</p>
-        <h4>Hidden Success Profile</h4>
-        <p>${escapeHtml(recruitment.hidden_success_profile || "")}</p>
-        <h4>Boolean Search Strings</h4>
-        ${renderList(recruitment.boolean_search_strings)}
-        <h4>Screening Rubric</h4>
-        ${renderRecruitmentRubric(recruitment.screening_rubric)}
-        <h4>Interview Questions</h4>
-        ${renderInterviewQuestionGroups(recruitment.interview_questions)}
-        <h4>Outreach Message</h4>
-        <p>${escapeHtml(recruitment.outreach_message || "")}</p>
-        <h4>21-Day Search Sprint</h4>
-        <p><strong>Week 1</strong></p>
-        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week1)}
-        <p><strong>Week 2</strong></p>
-        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week2)}
-        <p><strong>Week 3</strong></p>
-        ${renderList(recruitment.search_sprint_21_day_plan && recruitment.search_sprint_21_day_plan.week3)}
-      </article>
-
-      <article class="result-card">
-        <h3>Recruiter Diagnosis Summary</h3>
-        <h4>Executive Summary</h4>
-        <p>${escapeHtml(system.executive_summary || "")}</p>
-        <h4>Search Type Rationale</h4>
-        <p>${escapeHtml(diagnosis.opportunity_type_rationale || "")}</p>
-        <h4>Brief Clarity Rationale</h4>
-        <p>${escapeHtml(diagnosis.clarity_rationale || "")}</p>
-        <h4>Build Track Rationale</h4>
-        <p>${escapeHtml(diagnosis.pathway_rationale || "")}</p>
-        <h4>Confidence Rationale</h4>
-        <p>${escapeHtml(diagnosis.confidence_rationale || "")}</p>
-      </article>
-
-      <article class="result-card">
-        <h3>Brief Clarification</h3>
-        <div class="kv-grid">
-          <div class="kv"><strong>Needs Clarification</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
-          <div class="kv"><strong>Assumption Draft Used</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
+        <div class="risk-level-row">
+          <div>
+            <p class="risk-label">Chance Of Hiring Miss</p>
+            <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
+          </div>
+          <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
         </div>
-        <h4>Clarifying Questions</h4>
-        ${renderList(clarification.questions)}
-        <h4>Known</h4>
-        ${renderList(knownAssumedUnknown.known)}
-        <h4>Assumed</h4>
-        ${renderList(knownAssumedUnknown.assumed)}
-        <h4>Unknown</h4>
-        ${renderList(knownAssumedUnknown.unknown)}
-      </article>
+      </section>
 
-      <article class="result-card">
-        <h3>Recruiter Next Actions</h3>
-        ${renderList(nextActions)}
-        <h4>Grounding Notes</h4>
-        ${renderList(groundingNotes)}
-      </article>
+      <section class="panel blindspot-diagnosis-panel fade-in-diagnosis">
+        <div class="diagnosis-head">
+          <p class="diagnosis-kicker">What Is Wrong In The Brief</p>
+          <h3>Hidden Risks You Should Fix First</h3>
+          <p class="panel-note">These are the gaps that can waste weeks if not fixed now.</p>
+        </div>
+        <div class="diagnosis-need-grid">
+          <article class="diagnosis-need-card">
+            <h4>What You Asked For</h4>
+            <p>${escapeHtml(blindSpots.stated_need || "Not provided.")}</p>
+          </article>
+          <article class="diagnosis-need-card emphasis">
+            <h4>What You Likely Need</h4>
+            <p>${escapeHtml(blindSpots.likely_real_need || "Not inferred yet.")}</p>
+          </article>
+        </div>
+        <div class="diagnosis-list-grid">
+          ${renderDiagnosticListCard("&#129513;", "Assumptions That May Be Wrong", blindSpots.false_assumptions, "assumptions")}
+          ${renderDiagnosticListCard("&#9888;&#65039;", "How This Hire Can Fail", blindSpots.hidden_failure_modes, "failure-modes")}
+          ${renderDiagnosticListCard("&#128269;", "Risk Of Hiring The Wrong Profile", blindSpots.wrong_candidate_risks, "candidate-risks")}
+          ${renderDiagnosticListCard("&#128201;", "Pay Or Level Mismatch", blindSpots.compensation_or_level_mismatch, "mismatch")}
+          ${renderDiagnosticListCard("&#10071;", "Missing Success Targets", blindSpots.missing_success_definition, "missing")}
+        </div>
+        ${renderDiagnosticTextCard("What Strong Passive Candidates Will Expect", blindSpots.passive_candidate_reality)}
+        <article class="corrected-thesis-card slide-in-thesis">
+          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>Better Hiring Direction</h4>
+          <p>${escapeHtml(blindSpots.corrected_search_thesis || "No hiring direction provided.")}</p>
+        </article>
+      </section>
+
+      <div class="module-divider" role="presentation">
+        <span>Your Hiring Plan</span>
+      </div>
+
+      <div class="module-card-grid">
+        <article class="panel module-card">
+          <h3>Brief Snapshot</h3>
+          <div class="kv-grid compact">
+            <div class="kv"><strong>Hiring Type</strong><span>${escapeHtml(card.opportunity_type || "New Search")}</span></div>
+            <div class="kv"><strong>Brief Clarity</strong><span>${escapeHtml(card.clarity_level || "Needs work")}</span></div>
+            <div class="kv"><strong>Plan Mode</strong><span>${escapeHtml(formatBuildTrack(card.output_pathway))}</span></div>
+            <div class="kv"><strong>Confidence</strong><span>${renderBadge(card.confidence_level)}</span></div>
+            <div class="kv"><strong>Revision</strong><span>${escapeHtml(String(version.revision || "1"))}</span></div>
+            <div class="kv"><strong>Generated</strong><span>${escapeHtml(generatedAt)}</span></div>
+          </div>
+          <h4>Next Step</h4>
+          <p>${escapeHtml(card.recommended_next_step || "No recommendation available.")}</p>
+          <h4>Assumptions</h4>
+          ${renderModuleList(card.key_assumptions)}
+          <h4>Missing Info</h4>
+          ${renderModuleList(card.missing_information)}
+        </article>
+
+        <article class="panel module-card">
+          <h3>Why O2O Said This</h3>
+          <h4>Summary</h4>
+          <p>${escapeHtml(system.executive_summary || "No executive summary available.")}</p>
+          <h4>Brief Diagnosis</h4>
+          <p>${escapeHtml(recruitment.job_ad_diagnosis || "No diagnosis narrative provided.")}</p>
+          <h4>Why This Hiring Type</h4>
+          <p>${escapeHtml(diagnosis.opportunity_type_rationale || "No rationale provided.")}</p>
+          <h4>Why This Clarity Score</h4>
+          <p>${escapeHtml(diagnosis.clarity_rationale || "No rationale provided.")}</p>
+          <h4>Why This Plan Mode</h4>
+          <p>${escapeHtml(diagnosis.pathway_rationale || "No rationale provided.")}</p>
+          <h4>Why This Confidence</h4>
+          <p>${escapeHtml(diagnosis.confidence_rationale || "No rationale provided.")}</p>
+        </article>
+
+        <article class="panel module-card">
+          <h3>Ideal Candidate Profile</h3>
+          <h4>Candidate Persona</h4>
+          <p>${escapeHtml(recruitment.candidate_persona || "No candidate persona provided.")}</p>
+          <h4>What Success Looks Like</h4>
+          <p>${escapeHtml(recruitment.hidden_success_profile || "No hidden success profile provided.")}</p>
+        </article>
+
+        <article class="panel module-card boolean-module">
+          <h3>Search Strings You Can Copy</h3>
+          <p class="module-note">Copy these directly into LinkedIn, ATS, or other sourcing tools.</p>
+          ${renderBooleanStringBlocks(recruitment.boolean_search_strings)}
+        </article>
+
+        <article class="panel module-card">
+          <h3>Candidate Scorecard</h3>
+          ${renderRecruitmentRubric(recruitment.screening_rubric)}
+        </article>
+
+        <article class="panel module-card">
+          <h3>Interview Questions</h3>
+          ${renderInterviewQuestionGroups(recruitment.interview_questions)}
+        </article>
+
+        <article class="panel module-card">
+          <h3>Outreach Message</h3>
+          <p class="outreach-copy">${escapeHtml(recruitment.outreach_message || "No outreach message provided.")}</p>
+        </article>
+
+        <article class="panel module-card timeline-module">
+          <h3>21-Day Hiring Plan</h3>
+          ${renderSprintTimeline(recruitment.search_sprint_21_day_plan)}
+        </article>
+
+        <article class="panel module-card">
+          <h3>Open Questions + Next Steps</h3>
+          <div class="kv-grid compact">
+            <div class="kv"><strong>Needs Clarification</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
+            <div class="kv"><strong>Used Assumptions</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
+          </div>
+          <h4>Questions To Ask</h4>
+          ${renderModuleList(clarification.questions)}
+          <h4>Known</h4>
+          ${renderModuleList(knownAssumedUnknown.known)}
+          <h4>Assumed</h4>
+          ${renderModuleList(knownAssumedUnknown.assumed)}
+          <h4>Unknown</h4>
+          ${renderModuleList(knownAssumedUnknown.unknown)}
+          <h4>Next Actions</h4>
+          ${renderModuleList(nextActions)}
+          <h4>Notes</h4>
+          ${renderModuleList(groundingNotes)}
+        </article>
+      </div>
     </div>
   `;
 
   elements.outputSection.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-function renderRecruitmentRubric(items) {
-  const list = Array.isArray(items) ? items : [];
+function computeRiskScan(card, blindSpots) {
+  const roleClarityScore = mapClarityScore(card.clarity_level);
+  const falseAssumptions = toArray(blindSpots.false_assumptions).length;
+  const hiddenFailureModes = toArray(blindSpots.hidden_failure_modes).length;
+  const wrongCandidateRisks = toArray(blindSpots.wrong_candidate_risks).length;
+  const missingSuccessDefinition = toArray(blindSpots.missing_success_definition).length;
+  const compensationMismatch = toArray(blindSpots.compensation_or_level_mismatch).length;
+
+  const successDefinitionScore = clampScore(
+    90 - missingSuccessDefinition * 14 - falseAssumptions * 6 + (blindSpots.corrected_search_thesis ? 6 : 0)
+  );
+
+  const candidateMarketAlignmentScore = clampScore(
+    88 - compensationMismatch * 16 - wrongCandidateRisks * 10 + (roleClarityScore > 65 ? 4 : 0)
+  );
+
+  const failureModeRiskScore = clampScore(
+    hiddenFailureModes * 18 + wrongCandidateRisks * 12 + compensationMismatch * 10 + falseAssumptions * 8 +
+      (roleClarityScore < 50 ? 16 : 0)
+  );
+
+  let failureModeRisk = "LOW";
+  if (failureModeRiskScore >= 67) {
+    failureModeRisk = "HIGH";
+  } else if (failureModeRiskScore >= 34) {
+    failureModeRisk = "MEDIUM";
+  }
+
+  return {
+    roleClarityScore,
+    successDefinitionScore,
+    candidateMarketAlignmentScore,
+    failureModeRisk,
+    failureModeRiskScore
+  };
+}
+
+function mapClarityScore(level) {
+  const normalized = String(level || "").toLowerCase();
+
+  if (normalized === "clear") {
+    return 84;
+  }
+
+  if (normalized === "semi-clear") {
+    return 62;
+  }
+
+  if (normalized === "needs discovery") {
+    return 38;
+  }
+
+  if (normalized === "vague") {
+    return 28;
+  }
+
+  return 50;
+}
+
+function clampScore(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function renderRiskMetric(label, score) {
+  const value = clampScore(score);
+  return `
+    <article class="risk-metric-card">
+      <p class="risk-metric-label">${escapeHtml(label)}</p>
+      <p class="risk-metric-score">${escapeHtml(String(value))}</p>
+      <div class="risk-meter" role="presentation">
+        <span style="width: ${value}%"></span>
+      </div>
+    </article>
+  `;
+}
+
+function renderDiagnosticListCard(icon, title, items, toneClass) {
+  const list = toArray(items);
+  const tone = toneClass ? ` ${toneClass}` : "";
+
+  return `
+    <article class="diagnosis-list-card${tone}">
+      <h4><span class="diag-icon" aria-hidden="true">${icon}</span>${escapeHtml(title)}</h4>
+      ${list.length ? renderModuleList(list, "diagnosis-list") : '<p class="module-empty">No risk found here.</p>'}
+    </article>
+  `;
+}
+
+function renderDiagnosticTextCard(title, text) {
+  const value = String(text || "").trim();
+  return `
+    <article class="diagnosis-text-card">
+      <h4>${escapeHtml(title)}</h4>
+      <p>${escapeHtml(value || "No note provided.")}</p>
+    </article>
+  `;
+}
+
+function renderBooleanStringBlocks(items) {
+  const list = toArray(items);
   if (!list.length) {
-    return "<p>No rubric entries provided.</p>";
+    return '<p class="module-empty">No search strings provided.</p>';
   }
 
   return list
+    .map((item, index) => {
+      const value = String(item || "").trim();
+      const encodedValue = encodeURIComponent(value);
+
+      return `
+        <article class="boolean-code-card">
+          <div class="boolean-code-head">
+            <p class="boolean-label">Search String ${index + 1}</p>
+            <button class="code-copy-btn" type="button" data-copy-boolean="${encodedValue}">Copy</button>
+          </div>
+          <pre class="boolean-code"><code>${escapeHtml(value)}</code></pre>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function renderSprintTimeline(plan) {
+  const weekDefinitions = [
+    { label: "Week 1", subtitle: "Days 1-7", items: toArray(plan && plan.week1) },
+    { label: "Week 2", subtitle: "Days 8-14", items: toArray(plan && plan.week2) },
+    { label: "Week 3", subtitle: "Days 15-21", items: toArray(plan && plan.week3) }
+  ];
+
+  const hasAny = weekDefinitions.some((week) => week.items.length > 0);
+  if (!hasAny) {
+    return '<p class="module-empty">No 21-day actions provided.</p>';
+  }
+
+  return `
+    <div class="sprint-timeline">
+      ${weekDefinitions
+        .map((week, index) => {
+          return `
+            <article class="timeline-week">
+              <div class="timeline-marker" aria-hidden="true"><span>${index + 1}</span></div>
+              <div class="timeline-body">
+                <h4>${escapeHtml(week.label)}</h4>
+                <p class="timeline-subtitle">${escapeHtml(week.subtitle)}</p>
+                ${week.items.length ? renderModuleList(week.items, "timeline-list") : '<p class="module-empty">No actions listed.</p>'}
+              </div>
+            </article>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderRecruitmentRubric(items) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) {
+    return '<p class="module-empty">No scorecard items provided.</p>';
+  }
+
+  const cards = list
     .map((item) => {
       if (!item || typeof item !== "object") {
         return "";
       }
 
       return `
-      <div class="kv">
-        <strong>${escapeHtml(item.category || "Category")}</strong>
-        <span>Weight: ${escapeHtml(item.weight || "")}</span>
-        <p>${escapeHtml(item.what_to_look_for || "")}</p>
-      </div>
-    `;
+        <article class="rubric-item">
+          <div class="rubric-item-head">
+            <h4>${escapeHtml(item.category || "Category")}</h4>
+            <span class="rubric-weight">Weight ${escapeHtml(item.weight || "-")}</span>
+          </div>
+          <p>${escapeHtml(item.what_to_look_for || "No details provided.")}</p>
+        </article>
+      `;
     })
     .join("");
+
+  return `<div class="rubric-grid">${cards || '<p class="module-empty">No scorecard items provided.</p>'}</div>`;
 }
 
 function renderInterviewQuestionGroups(groups) {
   if (!groups || typeof groups !== "object") {
-    return "<p>No interview questions provided.</p>";
+    return '<p class="module-empty">No interview questions provided.</p>';
   }
 
   const sections = [
-    { key: "technical", label: "Technical" },
-    { key: "behavioral", label: "Behavioral" },
+    { key: "technical", label: "Skills" },
+    { key: "behavioral", label: "Behavior" },
     { key: "execution", label: "Execution" },
-    { key: "stakeholder", label: "Stakeholder" }
+    { key: "stakeholder", label: "Stakeholders" }
   ];
 
-  return sections
-    .map((section) => {
-      return `
-      <h4>${escapeHtml(section.label)}</h4>
-      ${renderList(groups[section.key])}
-    `;
-    })
-    .join("");
+  return `
+    <div class="interview-group-grid">
+      ${sections
+        .map((section) => {
+          const items = toArray(groups[section.key]);
+          return `
+            <section class="interview-group-card">
+              <h4>${escapeHtml(section.label)}</h4>
+              ${items.length ? renderModuleList(items) : '<p class="module-empty">No questions provided.</p>'}
+            </section>
+          `;
+        })
+        .join("")}
+    </div>
+  `;
+}
+
+function renderModuleList(items, className = "result-list") {
+  const list = toArray(items);
+  if (!list.length) {
+    return '<p class="module-empty">Not provided.</p>';
+  }
+
+  const normalized = list.map((item) => {
+    if (typeof item === "string") {
+      return item;
+    }
+
+    if (item && typeof item === "object") {
+      try {
+        return JSON.stringify(item);
+      } catch {
+        return String(item);
+      }
+    }
+
+    return String(item);
+  });
+
+  return `<ul class="${escapeHtml(className)}">${normalized
+    .map((item) => `<li>${escapeHtml(item)}</li>`)
+    .join("")}</ul>`;
 }
 
 function renderList(items) {
-  const list = toArray(items);
-  if (!list.length) {
-    return "<p>None provided.</p>";
-  }
-
-  return `<ul class="result-list">${list
-    .map((item) => `<li>${escapeHtml(item)}</li>`)
-    .join("")}</ul>`;
+  return renderModuleList(items);
 }
 
 function renderBadge(value) {

@@ -3,10 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>O2O Recruitment Engine&trade; | Recruitment Operating System Generator</title>
+    <title>O2O for Recruiters | Turn a Brief Into a Hiring Plan</title>
     <meta
       name="description"
-      content="Turn a weak brief into a clear recruiter search plan with risk diagnosis, target profile, and 21-day sprint outputs."
+      content="Paste a job brief. O2O finds hidden hiring risk and gives you a clear 21-day hiring plan."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -37,17 +37,20 @@
     <main>
       <section class="hero reveal">
         <p class="eyebrow">O2O Recruitment Engine&trade;</p>
-        <h1>Turn a weak brief into a clear search plan.</h1>
-        <p class="hero-subline">Paste one job brief. Get risk diagnosis, target profile, search strategy, outreach message, and a 21-day hiring sprint.</p>
+        <h1>Paste your brief. Get a clear hiring plan.</h1>
+        <p class="hero-subline">O2O shows what is missing, warns you about hiring risk, and gives you a step-by-step plan.</p>
+        <article class="hero-intel-note" aria-label="Intelligence difference">
+          <p>Most briefs are too vague. O2O tells you what to fix before you start searching.</p>
+        </article>
         <div class="hero-cta-row">
-          <a class="hero-run-btn" href="#studio">Run a Job Brief Diagnosis</a>
+          <a class="hero-run-btn" href="#studio">Run Diagnosis</a>
         </div>
       </section>
 
       <section id="example-output" class="example reveal-delay" aria-label="Proof sample">
         <div class="example-head">
           <p class="demo-kicker">Example</p>
-          <h3>Input: weak Senior AE brief. Output: O2O finds the hidden risk and builds the search plan.</h3>
+          <h3>Weak brief in. Clear hiring plan out.</h3>
         </div>
 
         <div class="examples-stack">
@@ -55,19 +58,20 @@
             <div class="case-layout-full">
               <section class="case-block">
                 <h5>Input</h5>
-                <p class="case-question">Senior Account Executive, B2B SaaS, 5+ years, strong closer, $120k base.</p>
+                <p class="case-question">We need a Senior Account Executive. 5+ years. Strong closer. Base $120k. Start ASAP.</p>
               </section>
 
               <section class="case-block case-output">
                 <h5>O2O Output</h5>
-                <p class="case-question">"You may not need a stronger closer. You may need an enterprise-cycle seller with pipeline discipline, CRM hygiene, and patience through a 6-month buying process."</p>
-                <p class="case-question"><strong>Generated pieces:</strong></p>
+                <p class="case-question">"This brief may hire the wrong profile. You likely need an enterprise-cycle seller with strong pipeline discipline."</p>
+                <p class="blindspot-highlight">Risk found: this brief rewards closing style, but this role needs process discipline.</p>
+                <p class="case-question"><strong>What O2O gives you:</strong></p>
                 <ul class="example-filled-list">
-                  <li>Corrected search thesis</li>
-                  <li>Boolean search string</li>
-                  <li>Screening rubric</li>
-                  <li>Outreach message</li>
-                  <li>21-day sprint</li>
+                  <li>Clear candidate profile</li>
+                  <li>Copy-paste search strings</li>
+                  <li>Candidate scorecard</li>
+                  <li>Interview questions</li>
+                  <li>21-day hiring plan</li>
                 </ul>
               </section>
             </div>
@@ -77,19 +81,19 @@
 
       <section class="builds-section reveal-delay-2" aria-label="What you get in one run">
         <div class="pricing-head">
-          <p class="demo-kicker">What You Get in One Run</p>
-          <h3>Everything needed to run a focused recruiter search.</h3>
+          <p class="demo-kicker">What You Get</p>
+          <h3>Everything you need to run a focused search.</h3>
         </div>
         <article class="panel builds-panel">
           <ul class="builds-list">
-            <li>Blind-spot diagnosis</li>
-            <li>Corrected search thesis</li>
-            <li>Candidate persona</li>
-            <li>Boolean search strings</li>
-            <li>Screening rubric</li>
-            <li>Interview guide</li>
-            <li>Outreach message</li>
-            <li>21-day search sprint</li>
+            <li>Risk diagnosis</li>
+            <li>Clear hiring direction</li>
+            <li>Ideal candidate profile</li>
+            <li>Search strings you can copy</li>
+            <li>Candidate scorecard</li>
+            <li>Interview question set</li>
+            <li>Outreach message draft</li>
+            <li>21-day hiring plan</li>
             <li>Shortlist scorecard</li>
             <li>Client briefing notes</li>
           </ul>
@@ -98,16 +102,17 @@
 
       <section id="studio" class="studio reveal-delay-2">
         <div class="studio-grid">
-          <article class="panel input-panel">
-            <h2>Run a Job Brief Diagnosis</h2>
-            <p class="panel-note">Paste a job brief. O2O shows what you are missing before you waste weeks searching.</p>
+          <article class="panel input-panel diagnostic-intake">
+            <p class="demo-kicker">Step 1: Paste the Brief</p>
+            <h2>Run Diagnosis</h2>
+            <p class="panel-note">Paste the brief and add any details you have. O2O will turn it into a clear hiring plan.</p>
 
-            <label for="ideaInput">Job brief</label>
+            <label for="ideaInput">Job brief text</label>
             <textarea id="ideaInput" placeholder="Paste the full role brief or job ad"></textarea>
 
             <div class="control-grid recruiter-form-grid">
               <div>
-                <label for="roleTitleInput">Role title</label>
+                <label for="roleTitleInput">Role name</label>
                 <input id="roleTitleInput" type="text" placeholder="Example: Senior Account Executive" />
               </div>
 
@@ -117,20 +122,20 @@
               </div>
 
               <div>
-                <label for="compensationRangeInput">Salary / compensation range</label>
+                <label for="compensationRangeInput">Pay range</label>
                 <input id="compensationRangeInput" type="text" placeholder="Example: Base $120k + variable" />
               </div>
 
               <div>
-                <label for="hiringChallengeInput">Hiring challenge</label>
+                <label for="hiringChallengeInput">Main hiring problem</label>
                 <input id="hiringChallengeInput" type="text" placeholder="Example: shortlist quality is weak despite high response volume" />
               </div>
             </div>
 
             <div class="action-row">
-              <button id="buildBtn" class="primary-btn">Run a Job Brief Diagnosis</button>
+              <button id="buildBtn" class="primary-btn">Run Diagnosis</button>
               <button id="retryBtn" class="upload-clear" type="button" hidden>Retry last action</button>
-              <span id="status" class="status">Idle</span>
+              <span id="status" class="status">Ready</span>
             </div>
           </article>
         </div>
@@ -139,17 +144,20 @@
       <section id="outputSection" class="output" hidden>
         <div id="output" hidden></div>
         <div id="exportRow" class="export-row" hidden>
-          <button id="copyMarkdownBtn" class="primary-btn" type="button">Copy as Markdown</button>
-          <button id="downloadPdfBtn" class="secondary-btn" type="button">Download PDF</button>
+          <button id="copyMarkdownBtn" class="primary-btn" type="button">Copy Plan as Markdown</button>
+          <button id="downloadPdfBtn" class="secondary-btn deliverable-btn" type="button">
+            <span class="btn-icon" aria-hidden="true">&#128196;</span>
+            <span>Download Plan as PDF</span>
+          </button>
         </div>
       </section>
 
       <section class="early-access reveal-delay-3">
         <article class="panel early-access-panel">
           <p class="demo-kicker">Early Access for Recruiters</p>
-          <h3>Early Access for Recruiters</h3>
-          <p>Join the recruiter pilot and shape the first live release of O2O Recruitment Engine&trade;.</p>
-          <button class="price-cta" type="button">Join the recruiter pilot</button>
+          <h3>Get Early Access</h3>
+          <p>Join the recruiter pilot and help shape the first live release.</p>
+          <button class="price-cta" type="button">Join the pilot</button>
 
           <details class="subscriber-menu subscriber-menu-inline" id="subscriberMenu">
             <summary class="subscriber-trigger">
