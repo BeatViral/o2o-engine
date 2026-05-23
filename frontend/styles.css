@@ -1259,6 +1259,14 @@ textarea {
   margin-bottom: 0.8rem;
 }
 
+.section-bridge {
+  margin: 0.35rem 0 0;
+  max-width: 860px;
+  color: #294650;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 .pricing-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
