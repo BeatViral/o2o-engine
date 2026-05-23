@@ -2936,6 +2936,28 @@ main {
 
 .diagnostic-output-shell > .panel {
   min-width: 0;
+  max-width: 100%;
+  background-clip: padding-box;
+  isolation: isolate;
+}
+
+.corrected-search-thesis-panel {
+  border: 1px solid rgba(128, 68, 36, 0.24);
+  border-radius: 18px;
+  box-shadow: 0 18px 34px rgba(67, 36, 18, 0.14), 0 0 0 1px rgba(255, 255, 255, 0.68) inset;
+  position: relative;
+  overflow: hidden;
+}
+
+.corrected-search-thesis-panel::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(223, 109, 47, 0.82), rgba(255, 200, 87, 0.74));
+  pointer-events: none;
 }
 
 .diagnosis-kicker {
@@ -2951,6 +2973,68 @@ main {
     radial-gradient(circle at 90% 10%, rgba(43, 196, 207, 0.28), rgba(43, 196, 207, 0) 38%),
     linear-gradient(145deg, #0c2d39 0%, #114150 62%, #165869 100%);
   box-shadow: 0 22px 40px rgba(7, 29, 38, 0.34);
+}
+
+.risk-scan-panel.support-panel {
+  border: 1px solid rgba(15, 83, 91, 0.26);
+  border-top: 3px solid rgba(15, 168, 176, 0.46);
+  background:
+    radial-gradient(circle at 90% 10%, rgba(15, 168, 176, 0.14), rgba(15, 168, 176, 0) 42%),
+    linear-gradient(156deg, rgba(255, 255, 255, 0.98), rgba(239, 250, 251, 0.92));
+  box-shadow: 0 16px 30px rgba(8, 30, 38, 0.13), 0 0 0 1px rgba(255, 255, 255, 0.66) inset;
+}
+
+.risk-scan-panel.support-panel::before {
+  display: none;
+}
+
+.risk-scan-panel.support-panel .diagnosis-kicker {
+  color: #0f5960;
+}
+
+.risk-scan-panel.support-panel .risk-scan-head h3 {
+  color: #173640;
+  font-size: clamp(1.38rem, 2.1vw, 1.72rem);
+}
+
+.risk-scan-panel.support-panel .risk-scan-note {
+  color: #385a64;
+  font-size: 0.95rem;
+}
+
+.risk-scan-panel.support-panel .risk-metric-card {
+  border: 1px solid rgba(14, 82, 88, 0.2);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.92), rgba(240, 252, 253, 0.86));
+  box-shadow: 0 8px 20px rgba(7, 45, 49, 0.1);
+}
+
+.risk-scan-panel.support-panel .risk-metric-label {
+  color: #33555e;
+}
+
+.risk-scan-panel.support-panel .risk-metric-score {
+  color: #132f35;
+}
+
+.risk-scan-panel.support-panel .risk-score-total {
+  color: #365b63;
+}
+
+.risk-scan-panel.support-panel .risk-meter {
+  background: rgba(15, 69, 76, 0.16);
+}
+
+.risk-scan-panel.support-panel .risk-level-row {
+  border: 1px solid rgba(14, 82, 88, 0.24);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.risk-scan-panel.support-panel .risk-label {
+  color: #355861;
+}
+
+.risk-scan-panel.support-panel .risk-score {
+  color: #163a41;
 }
 
 .risk-scan-panel .diagnosis-kicker {
