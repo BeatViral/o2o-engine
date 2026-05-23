@@ -1387,6 +1387,12 @@ textarea {
   color: #2a4750;
 }
 
+.pilot-commit {
+  max-width: 62ch;
+  font-size: 0.91rem;
+  color: #27444d;
+}
+
 .future-vertical-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2528,6 +2534,33 @@ textarea {
   border-radius: 0 10px 10px 0;
   padding: 0.4rem 0.72rem;
   background: linear-gradient(90deg, rgba(0, 216, 222, 0.12), rgba(255, 255, 255, 0.84));
+  line-height: 1.54;
+}
+
+.outreach-draft-card {
+  margin-top: 0.58rem;
+  border: 1px solid rgba(0, 216, 222, 0.26);
+  border-radius: 12px;
+  padding: 0.62rem;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.95), rgba(239, 251, 252, 0.9));
+}
+
+.outreach-draft-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.outreach-draft-label {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #0f5a61;
+  font-weight: 700;
 }
 
 .sprint-timeline {
@@ -3147,6 +3180,14 @@ main {
   .blindspot-risk-card,
   .module-card {
     padding: 0.7rem;
+  }
+
+  .outreach-draft-head {
+    align-items: flex-start;
+  }
+
+  .outreach-draft-head .code-copy-btn {
+    margin-left: 0;
   }
 
   .risk-card-head h4 {

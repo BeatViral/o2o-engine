@@ -1080,7 +1080,7 @@ function buildRecruitmentSampleSystem() {
       "Run a 20-minute hiring manager calibration call.",
       "Lock final scorecard before outreach starts."
     ],
-    grounding_notes: ["Use this sample to review UI and flow. Build live output when API is connected."],
+    grounding_notes: [],
     version: {
       revision: 1,
       generated_at: new Date().toISOString()
@@ -1260,16 +1260,20 @@ async function handleOutputActions(event) {
     return;
   }
 
-  const copyButton = target.closest("[data-copy-boolean]");
+  const copyButton = target.closest("[data-copy-boolean], [data-copy-text]");
   if (!(copyButton instanceof HTMLButtonElement)) {
     return;
   }
 
-  const encodedValue = String(copyButton.getAttribute("data-copy-boolean") || "");
+  const encodedValue = String(
+    copyButton.getAttribute("data-copy-text") || copyButton.getAttribute("data-copy-boolean") || ""
+  );
   const decodedValue = decodeURIComponent(encodedValue);
   if (!decodedValue.trim()) {
     return;
   }
+
+  const copyLabel = copyButton.hasAttribute("data-copy-boolean") ? "Boolean string" : "Message";
 
   const originalLabel = copyButton.textContent || "Copy";
 
@@ -1281,9 +1285,9 @@ async function handleOutputActions(event) {
       copyButton.textContent = originalLabel;
       copyButton.disabled = false;
     }, 1200);
-    setStatus("Boolean string copied to clipboard", "success");
+    setStatus(`${copyLabel} copied to clipboard`, "success");
   } catch (error) {
-    setStatus(error.message || "Could not copy Boolean string", "error");
+    setStatus(error.message || `Could not copy ${copyLabel.toLowerCase()}`, "error");
   }
 }
 
@@ -1600,7 +1604,7 @@ function renderSystem(system) {
   const clarification = system.clarification || {};
   const knownAssumedUnknown = system.known_assumed_unknown || {};
   const nextActions = toArray(system.next_actions);
-  const groundingNotes = toArray(system.grounding_notes);
+  const groundingNotes = sanitizeGroundingNotes(system.grounding_notes);
 
   const version = system.version || { revision: 1, generated_at: "" };
   const generatedAt = formatResetDate(version.generated_at);
@@ -1768,7 +1772,8 @@ function renderSystem(system) {
 
         <article class="panel module-card">
           <h3>Outreach Message</h3>
-          <p class="outreach-copy">${escapeHtml(recruitment.outreach_message || "No outreach message provided.")}</p>
+          <p class="module-note">Copy-paste ready LinkedIn / email draft based on this diagnosis.</p>
+          ${renderOutreachDraft(recruitment, blindSpots, card)}
         </article>
 
         <article class="panel module-card timeline-module">
@@ -1779,8 +1784,8 @@ function renderSystem(system) {
         <article class="panel module-card">
           <h3>Questions + Next Steps</h3>
           <div class="kv-grid compact">
-            <div class="kv"><strong>Needs More Info</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
-            <div class="kv"><strong>Used Best-Guess Inputs</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
+            <div class="kv"><strong>Calibration Status</strong><span>${escapeHtml(renderClarificationStatus(clarification.needs_clarification))}</span></div>
+            <div class="kv"><strong>Assumption Mode</strong><span>${escapeHtml(renderAssumptionStatus(clarification.assumption_based_draft_used))}</span></div>
           </div>
           <h4>Questions To Ask</h4>
           ${renderModuleList(clarification.questions)}
@@ -1792,8 +1797,7 @@ function renderSystem(system) {
           ${renderModuleList(knownAssumedUnknown.unknown)}
           <h4>Next Actions</h4>
           ${renderModuleList(nextActions)}
-          <h4>Notes</h4>
-          ${renderModuleList(groundingNotes)}
+          ${groundingNotes.length ? `<h4>Notes</h4>${renderModuleList(groundingNotes)}` : ""}
         </article>
       </div>
     </div>
@@ -2093,6 +2097,89 @@ function renderBooleanStringBlocks(items) {
       `;
     })
     .join("");
+}
+
+function renderOutreachDraft(recruitment, blindSpots, card) {
+  const draft = buildOutreachDraft(recruitment, blindSpots, card);
+  const encodedDraft = encodeURIComponent(draft);
+
+  return `
+    <article class="outreach-draft-card">
+      <div class="outreach-draft-head">
+        <p class="outreach-draft-label">LinkedIn / Email Draft</p>
+        <button class="code-copy-btn" type="button" data-copy-text="${encodedDraft}">Copy message</button>
+      </div>
+      <p class="outreach-copy">${escapeHtml(draft)}</p>
+    </article>
+  `;
+}
+
+function buildOutreachDraft(recruitment, blindSpots, card) {
+  const roleLabel = firstNonEmptyText(
+    [elements.roleTitleInput && elements.roleTitleInput.value],
+    formatSearchType(card.opportunity_type || "role")
+  );
+
+  const industryLabel = firstNonEmptyText(
+    [elements.industryInput && elements.industryInput.value],
+    "B2B SaaS"
+  );
+
+  const personaSnippet = firstNonEmptyText(
+    [recruitment.candidate_persona],
+    "enterprise-capable seller who can run disciplined long-cycle execution"
+  );
+
+  const successSnippet = firstNonEmptyText(
+    [recruitment.hidden_success_profile],
+    "forecast accuracy, CRM hygiene, and strong multi-stakeholder deal control"
+  );
+
+  const thesisSnippet = firstNonEmptyText(
+    [blindSpots.corrected_search_thesis],
+    "prioritize disciplined long-cycle execution over pure close-speed signal"
+  );
+
+  const thesisSentence = thesisSnippet
+    .split(/(?<=[.!?])\s+/)
+    .map((sentence) => sentence.trim())
+    .find(Boolean) || thesisSnippet;
+
+  return [
+    `Hi [First Name], I am leading a ${roleLabel} search in ${industryLabel}, and your track record in complex B2B selling stood out.`,
+    "This is not a pure close-speed mandate; the biggest risk is hiring someone who interviews well but loses control in longer, multi-stakeholder cycles.",
+    `Ideal profile: ${ensureTerminalPunctuation(personaSnippet)}`,
+    `Interview evidence we prioritize: ${ensureTerminalPunctuation(successSnippet)}`,
+    `Search thesis: ${ensureTerminalPunctuation(thesisSentence)}`,
+    "If this aligns, I can share the scorecard and 21-day execution plan before we schedule a quick call."
+  ].join(" ");
+}
+
+function renderClarificationStatus(needsClarification) {
+  return needsClarification
+    ? "Some details were estimated. Review questions and assumptions below."
+    : "Brief has enough confirmed detail for execution."
+}
+
+function renderAssumptionStatus(assumptionBasedDraftUsed) {
+  return assumptionBasedDraftUsed
+    ? "Best-guess inputs used where the brief was silent."
+    : "Plan built mainly from confirmed brief details."
+}
+
+function sanitizeGroundingNotes(notes) {
+  return toArray(notes).filter((note) => {
+    const value = String(note || "").toLowerCase();
+    return !/(sample to review ui|review ui and flow|api is connected|demo only|placeholder|mock only)/i.test(value);
+  });
+}
+
+function ensureTerminalPunctuation(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  return /[.!?]$/.test(text) ? text : `${text}.`;
 }
 
 function renderSprintTimeline(plan) {
