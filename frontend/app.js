@@ -66,6 +66,10 @@ function initialize() {
   state.authToken = readStoredAccessToken();
   state.userId = readOrCreateUserId();
 
+  if (elements.subscriberMenu) {
+    elements.subscriberMenu.open = false;
+  }
+
   const previewTargets = [
     elements.ideaInput,
     elements.roleTitleInput,

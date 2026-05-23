@@ -224,10 +224,15 @@ main,
 }
 
 .subscriber-menu-inline .subscriber-panel {
+  display: none;
   position: static;
   width: 100%;
   margin-top: 0.6rem;
   box-shadow: 0 14px 24px rgba(7, 26, 30, 0.12);
+}
+
+.subscriber-menu-inline[open] .subscriber-panel {
+  display: block;
 }
 
 .subscriber-title {
