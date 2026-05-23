@@ -600,7 +600,7 @@ main,
 
 .studio-grid {
   display: grid;
-  grid-template-columns: 1.25fr 0.75fr;
+  grid-template-columns: 1fr;
   gap: 1rem;
 }
 

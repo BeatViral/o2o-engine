@@ -478,11 +478,15 @@ function resolveApiBase() {
 
 function setBusy(isBusy, statusText) {
   state.busy = isBusy;
-  elements.buildBtn.disabled = isBusy;
+  if (elements.buildBtn) {
+    elements.buildBtn.disabled = isBusy;
+  }
   if (elements.demoRecruitmentBtn) {
     elements.demoRecruitmentBtn.disabled = isBusy;
   }
-  elements.refineBtn.disabled = isBusy;
+  if (elements.refineBtn) {
+    elements.refineBtn.disabled = isBusy;
+  }
   if (elements.imageInput) {
     elements.imageInput.disabled = isBusy;
   }
@@ -891,7 +895,7 @@ function renderSubscriberMenu() {
   }
 
   if (authenticated) {
-    setSubscriberMessage("Access active. Your plan and usage details are now available.");
+    setSubscriberMessage("Access active. You can run recruiter diagnoses.");
   } else {
     setSubscriberMessage("Enter your access code to unlock your recruiter workspace.");
   }
@@ -1060,6 +1064,10 @@ async function retryLastAction() {
 }
 
 function setOutputEmptyState(isEmpty) {
+  if (elements.outputSection) {
+    elements.outputSection.hidden = isEmpty;
+  }
+
   if (elements.outputEmptyState) {
     elements.outputEmptyState.hidden = !isEmpty;
   }
@@ -1232,6 +1240,10 @@ function formatBuildTrack(pathway) {
 }
 
 function renderLiveCardPreview() {
+  if (!elements.liveCard) {
+    return;
+  }
+
   const idea = String((elements.ideaInput && elements.ideaInput.value) || "").trim();
   const roleTitle = String((elements.roleTitleInput && elements.roleTitleInput.value) || "").trim();
   const industry = String((elements.industryInput && elements.industryInput.value) || "").trim();
