@@ -1610,25 +1610,37 @@ function renderSystem(system) {
   const generatedAt = formatResetDate(version.generated_at);
   const riskScan = computeRiskScan(card, blindSpots);
   const blindSpotReport = buildBlindSpotReport(recruitment, blindSpots, clarification);
+  const mainRiskStatement = buildMainRiskStatement(blindSpotReport);
+  const correctedThesisStatement = buildCorrectedSearchThesisStatement(blindSpotReport.correctedSearchThesis);
 
   elements.outputSection.hidden = false;
   setOutputEmptyState(false);
   elements.output.innerHTML = `
     <div class="diagnostic-output-shell">
-      <section class="panel risk-scan-panel fade-in-diagnosis">
+      <section class="panel corrected-search-thesis-panel slide-in-thesis">
+        <div class="thesis-head">
+          <p class="diagnosis-kicker">Blind Spot Diagnosis</p>
+          <h3>Recruiter Diagnostic Report</h3>
+        </div>
+        <p class="blindspot-report-lead">O2O found 5 hiring risks in this brief.</p>
+        <p class="main-risk-line">${escapeHtml(mainRiskStatement)}</p>
+        <p class="thesis-statement">${escapeHtml(correctedThesisStatement)}</p>
+      </section>
+
+      <section class="panel risk-scan-panel support-panel fade-in-diagnosis">
         <div class="risk-scan-head">
-          <p class="diagnosis-kicker">Risk Scan</p>
-          <h3>Diagnostic Risk Scan Panel</h3>
-          <p class="risk-scan-note">Read this before persona, sourcing, or outreach. It shows where the brief can fail.</p>
+          <p class="diagnosis-kicker">Quick Risk Check</p>
+          <h3>Check Risk Before You Search</h3>
+          <p class="risk-scan-note">These scores support the diagnosis above.</p>
         </div>
         <div class="risk-metric-grid">
-          ${renderRiskMetric("Role Clarity Score", riskScan.roleClarityScore)}
-          ${renderRiskMetric("Success Definition Score", riskScan.successDefinitionScore)}
-          ${renderRiskMetric("Candidate-Market Fit Score", riskScan.candidateMarketAlignmentScore)}
+          ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
+          ${renderRiskMetric("Success Clarity", riskScan.successDefinitionScore)}
+          ${renderRiskMetric("Market Match", riskScan.candidateMarketAlignmentScore)}
         </div>
         <div class="risk-level-row">
           <div>
-            <p class="risk-label">Failure Mode Risk</p>
+            <p class="risk-label">Risk of Wrong Hire</p>
             <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
           </div>
           <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
@@ -1637,9 +1649,8 @@ function renderSystem(system) {
 
       <section class="panel blindspot-report-panel fade-in-diagnosis">
         <div class="diagnosis-head">
-          <p class="diagnosis-kicker">Blind Spot Diagnosis</p>
-          <h3>Recruiter Diagnostic Report</h3>
-          <p class="blindspot-report-lead">O2O found 5 hiring risks in this brief.</p>
+          <p class="diagnosis-kicker">5 Diagnostic Risks</p>
+          <h3>Where This Search Can Break</h3>
           ${blindSpotReport.inputBrief
             ? `<p class="blindspot-input-snapshot"><span>Input:</span> ${escapeHtml(blindSpotReport.inputBrief)}</p>`
             : ""}
@@ -1699,10 +1710,18 @@ function renderSystem(system) {
             ],
             "missing-evidence"
           )}
-          ${renderBlindSpotThesisCard(
+          ${renderBlindSpotRiskCard(
             5,
-            "Corrected search thesis",
-            blindSpotReport.correctedSearchThesis
+            "Missing success targets",
+            [
+              { label: "What is still missing", value: blindSpotReport.missingTargets.whatIsMissing },
+              { label: "Why this creates hiring risk", value: blindSpotReport.missingTargets.whyThisCreatesRisk },
+              {
+                label: "What to define before search",
+                value: blindSpotReport.missingTargets.whatToDefineBeforeSearch
+              }
+            ],
+            "missing-targets"
           )}
         </div>
       </section>
@@ -1916,6 +1935,20 @@ function buildBlindSpotReport(recruitment, blindSpots, clarification) {
         "Use a live deal walkthrough question set to expose forecast discipline, multi-thread control, and resilience in long-cycle selling."
       )
     },
+    missingTargets: {
+      whatIsMissing: firstNonEmptyText(
+        [missingSuccessDefinition[0], clarificationQuestions[0]],
+        "Clear first-90-day outcomes, cycle expectations, and deal ownership targets."
+      ),
+      whyThisCreatesRisk: firstNonEmptyText(
+        [hiddenFailureModes[1], falseAssumptions[1], wrongCandidateRisks[1]],
+        "Without explicit success targets, shortlist decisions drift toward interview confidence instead of execution evidence."
+      ),
+      whatToDefineBeforeSearch: firstNonEmptyText(
+        [clarificationQuestions[0], missingSuccessDefinition[1]],
+        "Define first-90-day outcomes, stage conversion expectations, and stakeholder complexity before outreach starts."
+      )
+    },
     correctedSearchThesis: firstNonEmptyText(
       [blindSpots.corrected_search_thesis],
       "Search for an enterprise-capable AE who demonstrates pipeline discipline, CRM hygiene, multi-stakeholder deal control, and patience through long buying cycles over pure close-speed signal."
@@ -2007,6 +2040,50 @@ function renderBlindSpotThesisCard(index, title, thesisText) {
       <p class="thesis-card-copy">${escapeHtml(String(thesisText || "No corrected thesis provided."))}</p>
     </article>
   `;
+}
+
+function buildMainRiskStatement(blindSpotReport) {
+  const requestedProfile = normalizeMainRiskFragment(
+    blindSpotReport && blindSpotReport.roleConfusion && blindSpotReport.roleConfusion.whatBriefSays,
+    "Need a strong closer"
+  );
+
+  const actualProfile = normalizeMainRiskFragment(
+    blindSpotReport && blindSpotReport.roleConfusion && blindSpotReport.roleConfusion.actualRoleNeeds,
+    "Need a disciplined long-cycle seller"
+  );
+
+  return `Main risk: You're searching for ${requestedProfile}. This role may actually need ${actualProfile}. Those are different people.`;
+}
+
+function buildCorrectedSearchThesisStatement(thesis) {
+  const normalized = compactDiagnosticPhrase(
+    thesis,
+    "Search for pipeline discipline, CRM hygiene, forecast quality, and stakeholder control."
+  );
+  return `Corrected search thesis: ${ensureTerminalPunctuation(normalized)}`;
+}
+
+function compactDiagnosticPhrase(value, fallback = "") {
+  const normalized = firstNonEmptyText([value], fallback)
+    .replace(/\s+/g, " ")
+    .replace(/^["'`]+|["'`]+$/g, "")
+    .replace(/[.?!]+$/g, "")
+    .trim();
+
+  return normalized || String(fallback || "").trim();
+}
+
+function normalizeMainRiskFragment(value, fallback = "") {
+  const phrase = compactDiagnosticPhrase(value, fallback)
+    .replace(/^needs?\s+/i, "")
+    .trim();
+
+  if (!phrase) {
+    return compactDiagnosticPhrase(fallback, fallback).toLowerCase();
+  }
+
+  return phrase.charAt(0).toLowerCase() + phrase.slice(1);
 }
 
 function mapClarityScore(level) {

@@ -1967,6 +1967,12 @@ textarea {
   box-shadow: 0 20px 40px rgba(8, 36, 40, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
 }
 
+.risk-scan-panel.support-panel {
+  border-top-width: 3px;
+  border-color: rgba(0, 216, 222, 0.34);
+  box-shadow: 0 14px 28px rgba(8, 36, 40, 0.12), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
 .risk-scan-head h3,
 .diagnosis-head h3,
 .module-card h3 {
@@ -2187,6 +2193,10 @@ textarea {
   border-left-color: rgba(198, 76, 28, 0.82);
 }
 
+.blindspot-risk-card.missing-targets {
+  border-left-color: rgba(136, 48, 98, 0.78);
+}
+
 .blindspot-risk-card.thesis-card {
   grid-column: 1 / -1;
   border-left-color: rgba(255, 106, 43, 0.9);
@@ -2307,6 +2317,14 @@ textarea {
   font-weight: 700;
   line-height: 1.5;
   color: #3f2214;
+}
+
+.main-risk-line {
+  margin: 0.5rem 0 0;
+  font-size: clamp(0.98rem, 1.35vw, 1.08rem);
+  line-height: 1.5;
+  color: #4a2818;
+  font-weight: 650;
 }
 
 .thesis-note {
