@@ -1756,7 +1756,7 @@ function renderSystem(system) {
 
         <article class="panel module-card boolean-module">
           <h3>Search Strings You Can Copy</h3>
-          <p class="module-note">Copy these directly into your search tools.</p>
+          <p class="module-note search-strings-note">These strings find the specific type of person this role needs, not just anyone with the right job title. Paste them directly into LinkedIn, LinkedIn Recruiter, Seek, or Indeed.</p>
           ${renderBooleanStringBlocks(recruitment.boolean_search_strings)}
         </article>
 
