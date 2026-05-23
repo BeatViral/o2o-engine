@@ -1610,8 +1610,14 @@ function renderSystem(system) {
   const generatedAt = formatResetDate(version.generated_at);
   const riskScan = computeRiskScan(card, blindSpots);
   const blindSpotReport = buildBlindSpotReport(recruitment, blindSpots, clarification);
-  const mainRiskStatement = buildMainRiskStatement(blindSpotReport);
-  const correctedThesisStatement = buildCorrectedSearchThesisStatement(blindSpotReport.correctedSearchThesis);
+  const askedForStatement = buildAskedForStatement(blindSpotReport);
+  const likelyNeedStatement = buildLikelyNeedStatement(blindSpotReport, recruitment);
+  const correctedThesisStatement = buildCorrectedSearchThesisStatement(
+    blindSpotReport.correctedSearchThesis,
+    askedForStatement,
+    likelyNeedStatement,
+    card
+  );
 
   elements.outputSection.hidden = false;
   setOutputEmptyState(false);
@@ -1623,28 +1629,17 @@ function renderSystem(system) {
           <h3>Recruiter Diagnostic Report</h3>
         </div>
         <p class="blindspot-report-lead">O2O found 5 hiring risks in this brief.</p>
-        <p class="main-risk-line">${escapeHtml(mainRiskStatement)}</p>
+        <div class="diagnosis-contrast-grid">
+          <article class="diagnosis-contrast-item">
+            <p class="diagnosis-contrast-label">What you asked for:</p>
+            <p class="diagnosis-contrast-value">${escapeHtml(toSentenceCase(ensureTerminalPunctuation(askedForStatement)))}</p>
+          </article>
+          <article class="diagnosis-contrast-item">
+            <p class="diagnosis-contrast-label">What you likely need:</p>
+            <p class="diagnosis-contrast-value">${escapeHtml(toSentenceCase(ensureTerminalPunctuation(likelyNeedStatement)))}</p>
+          </article>
+        </div>
         <p class="thesis-statement">${escapeHtml(correctedThesisStatement)}</p>
-      </section>
-
-      <section class="panel risk-scan-panel support-panel fade-in-diagnosis">
-        <div class="risk-scan-head">
-          <p class="diagnosis-kicker">Quick Risk Check</p>
-          <h3>Check Risk Before You Search</h3>
-          <p class="risk-scan-note">These scores support the diagnosis above.</p>
-        </div>
-        <div class="risk-metric-grid">
-          ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
-          ${renderRiskMetric("Success Clarity", riskScan.successDefinitionScore)}
-          ${renderRiskMetric("Market Match", riskScan.candidateMarketAlignmentScore)}
-        </div>
-        <div class="risk-level-row">
-          <div>
-            <p class="risk-label">Risk of Wrong Hire</p>
-            <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
-          </div>
-          <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
-        </div>
       </section>
 
       <section class="panel blindspot-report-panel fade-in-diagnosis">
@@ -1723,6 +1718,26 @@ function renderSystem(system) {
             ],
             "missing-targets"
           )}
+        </div>
+      </section>
+
+      <section class="panel risk-scan-panel support-panel fade-in-diagnosis">
+        <div class="risk-scan-head">
+          <p class="diagnosis-kicker">Support Scores</p>
+          <h3>Check Risk Before You Search</h3>
+          <p class="risk-scan-note">Use these scores as evidence for the diagnosis above.</p>
+        </div>
+        <div class="risk-metric-grid">
+          ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
+          ${renderRiskMetric("Success Clarity", riskScan.successDefinitionScore)}
+          ${renderRiskMetric("Market Match", riskScan.candidateMarketAlignmentScore)}
+        </div>
+        <div class="risk-level-row">
+          <div>
+            <p class="risk-label">Risk of Wrong Hire</p>
+            <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
+          </div>
+          <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
         </div>
       </section>
 
@@ -2042,26 +2057,47 @@ function renderBlindSpotThesisCard(index, title, thesisText) {
   `;
 }
 
-function buildMainRiskStatement(blindSpotReport) {
-  const requestedProfile = normalizeMainRiskFragment(
+function buildAskedForStatement(blindSpotReport) {
+  const phrase = normalizeMainRiskFragment(
     blindSpotReport && blindSpotReport.roleConfusion && blindSpotReport.roleConfusion.whatBriefSays,
-    "Need a strong closer"
+    "a strong closer quickly"
   );
 
-  const actualProfile = normalizeMainRiskFragment(
-    blindSpotReport && blindSpotReport.roleConfusion && blindSpotReport.roleConfusion.actualRoleNeeds,
-    "Need a disciplined long-cycle seller"
-  );
-
-  return `Main risk: You're searching for ${requestedProfile}. This role may actually need ${actualProfile}. Those are different people.`;
+  return /^(a|an)\s+/i.test(phrase) ? phrase : `a ${phrase}`;
 }
 
-function buildCorrectedSearchThesisStatement(thesis) {
-  const normalized = compactDiagnosticPhrase(
-    thesis,
-    "Search for pipeline discipline, CRM hygiene, forecast quality, and stakeholder control."
+function buildLikelyNeedStatement(blindSpotReport, recruitment) {
+  return "a disciplined long-cycle seller with pipeline control, CRM hygiene, forecast quality and stakeholder patience";
+}
+
+function buildCorrectedSearchThesisStatement(thesis, askedForStatement, likelyNeedStatement, card) {
+  const roleTitle = firstNonEmptyText(
+    [elements.roleTitleInput && elements.roleTitleInput.value],
+    formatSearchType((card && card.opportunity_type) || "AE")
   );
-  return `Corrected search thesis: ${ensureTerminalPunctuation(normalized)}`;
+
+  const normalizedRole = compactDiagnosticPhrase(roleTitle, "B2B SaaS AE");
+  const roleFragment = /(search brief|discovery system|role)/i.test(normalizedRole)
+    ? "B2B SaaS AE"
+    : normalizedRole;
+
+  const askedForCore = compactDiagnosticPhrase(
+    askedForStatement,
+    "a strong closer"
+  )
+    .replace(/\b(quickly|fast|asap|urgently|immediately)\b/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalizedAskedFor = /^(a|an)\s+/i.test(askedForCore) ? askedForCore : `a ${askedForCore}`;
+
+  const fallback = `Do not search for "${normalizedAskedFor}." Search for a ${roleFragment} with evidence of pipeline discipline, CRM hygiene, forecast quality and multi-stakeholder deal control.`;
+
+  const normalized = compactDiagnosticPhrase(thesis, "");
+  if (/do not search for/i.test(normalized)) {
+    return `Corrected search thesis: ${ensureTerminalPunctuation(normalized)}`;
+  }
+
+  return `Corrected search thesis: ${ensureTerminalPunctuation(fallback)}`;
 }
 
 function compactDiagnosticPhrase(value, fallback = "") {
@@ -2084,6 +2120,14 @@ function normalizeMainRiskFragment(value, fallback = "") {
   }
 
   return phrase.charAt(0).toLowerCase() + phrase.slice(1);
+}
+
+function toSentenceCase(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  return text.charAt(0).toUpperCase() + text.slice(1);
 }
 
 function mapClarityScore(level) {
