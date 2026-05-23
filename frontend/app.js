@@ -1,9 +1,10 @@
 const elements = {
   ideaInput: document.getElementById("ideaInput"),
-  opportunityType: document.getElementById("opportunityType"),
-  stage: document.getElementById("stage"),
-  goal: document.getElementById("goal"),
-  constraintsInput: document.getElementById("constraintsInput"),
+  roleTitleInput: document.getElementById("roleTitleInput"),
+  industryInput: document.getElementById("industryInput"),
+  compensationRangeInput: document.getElementById("compensationRangeInput"),
+  companyStageInput: document.getElementById("companyStageInput"),
+  hiringChallengeInput: document.getElementById("hiringChallengeInput"),
   contextInput: document.getElementById("contextInput"),
   imageInput: document.getElementById("imageInput"),
   imageMeta: document.getElementById("imageMeta"),
@@ -67,9 +68,12 @@ function initialize() {
 
   const previewTargets = [
     elements.ideaInput,
-    elements.opportunityType,
-    elements.stage,
-    elements.goal
+    elements.roleTitleInput,
+    elements.industryInput,
+    elements.compensationRangeInput,
+    elements.companyStageInput,
+    elements.hiringChallengeInput,
+    elements.contextInput
   ];
 
   previewTargets.forEach((target) => {
@@ -237,10 +241,15 @@ async function checkApiHealth() {
 async function handleBuild(options = {}) {
   const idea = String(options.ideaOverride || elements.ideaInput.value || "").trim();
   if (!idea) {
-    setStatus("Describe the role brief first", "warning");
+    setStatus("Paste the job brief first", "warning");
     elements.ideaInput.focus();
     return;
   }
+
+  const recruiterInputs = collectRecruiterInputs(options);
+  const inferredSearchType = inferOpportunityType(
+    [recruiterInputs.roleTitle, recruiterInputs.industry, recruiterInputs.hiringChallenge, idea].filter(Boolean).join(" ")
+  );
 
   state.lastBuildOptions = options;
 
@@ -249,11 +258,13 @@ async function handleBuild(options = {}) {
     title: String(options.title || "").trim(),
     verticalFocus: String(options.verticalFocus || "Recruitment / Headhunting").trim(),
     demoMode: Boolean(options.demoMode),
-    opportunityTypeHint: elements.opportunityType.value,
-    stage: elements.stage.value,
-    goal: elements.goal.value,
-    constraints: String(elements.constraintsInput.value || "").trim(),
-    context: String(elements.contextInput.value || "").trim(),
+    opportunityTypeHint: inferredSearchType,
+    stage: recruiterInputs.companyStage || "Intake",
+    goal: "Build full recruiter operating system",
+    constraints: recruiterInputs.compensationRange
+      ? `Compensation range: ${recruiterInputs.compensationRange}`
+      : "",
+    context: recruiterInputs.context,
     allowAssumptions: true
   };
 
@@ -926,6 +937,52 @@ function formatResetDate(isoText) {
   });
 }
 
+function collectRecruiterInputs(options = {}) {
+  const roleTitle = String(options.roleTitleOverride || (elements.roleTitleInput && elements.roleTitleInput.value) || "").trim();
+  const industry = String(options.industryOverride || (elements.industryInput && elements.industryInput.value) || "").trim();
+  const compensationRange = String(
+    options.compensationRangeOverride ||
+      (elements.compensationRangeInput && elements.compensationRangeInput.value) ||
+      ""
+  ).trim();
+  const companyStage = String(options.companyStageOverride || (elements.companyStageInput && elements.companyStageInput.value) || "").trim();
+  const hiringChallenge = String(
+    options.hiringChallengeOverride ||
+      (elements.hiringChallengeInput && elements.hiringChallengeInput.value) ||
+      ""
+  ).trim();
+  const optionalContext = String(options.contextOverride || (elements.contextInput && elements.contextInput.value) || "").trim();
+
+  const contextLines = [];
+  if (roleTitle) {
+    contextLines.push(`Role title: ${roleTitle}`);
+  }
+  if (industry) {
+    contextLines.push(`Industry: ${industry}`);
+  }
+  if (companyStage) {
+    contextLines.push(`Company stage: ${companyStage}`);
+  }
+  if (compensationRange) {
+    contextLines.push(`Compensation range: ${compensationRange}`);
+  }
+  if (hiringChallenge) {
+    contextLines.push(`Hiring challenge: ${hiringChallenge}`);
+  }
+  if (optionalContext) {
+    contextLines.push(`Optional client context: ${optionalContext}`);
+  }
+
+  return {
+    roleTitle,
+    industry,
+    compensationRange,
+    companyStage,
+    hiringChallenge,
+    context: contextLines.join("\n")
+  };
+}
+
 function runRecruitmentDemo() {
   const demoJobAd = [
     "We are hiring a Senior Account Executive for a B2B SaaS company.",
@@ -936,20 +993,23 @@ function runRecruitmentDemo() {
   if (elements.ideaInput) {
     elements.ideaInput.value = `${demoJobAd}\n\nQuestion: Identify hidden hiring failure modes, correct the search thesis, then build a concrete 21-day recruitment operating system.`;
   }
-  if (elements.opportunityType) {
-    elements.opportunityType.value = "Auto";
+  if (elements.roleTitleInput) {
+    elements.roleTitleInput.value = "Senior Account Executive";
   }
-  if (elements.stage) {
-    elements.stage.value = "Intake";
+  if (elements.industryInput) {
+    elements.industryInput.value = "B2B SaaS";
   }
-  if (elements.goal) {
-    elements.goal.value = "Build full recruiter operating system";
+  if (elements.compensationRangeInput) {
+    elements.compensationRangeInput.value = "Base $120k + variable";
   }
-  if (elements.constraintsInput) {
-    elements.constraintsInput.value = "1 recruiter, 1 hiring manager, shortlist in 21 days, no paid tools";
+  if (elements.companyStageInput) {
+    elements.companyStageInput.value = "Series A-B";
+  }
+  if (elements.hiringChallengeInput) {
+    elements.hiringChallengeInput.value = "Role attracts closers but misses enterprise-cycle discipline";
   }
   if (elements.contextInput) {
-    elements.contextInput.value = "Recruitment focus: surface blind spots first, then build copy-pasteable execution artifacts for a serious recruiter.";
+    elements.contextInput.value = "Recruitment focus: surface blind spots first, then build copy-paste-ready execution artifacts for a serious recruiter.";
   }
 
   renderLiveCardPreview();
@@ -1173,21 +1233,28 @@ function formatBuildTrack(pathway) {
 }
 
 function renderLiveCardPreview() {
-  const idea = String(elements.ideaInput.value || "").trim();
-  const selectedType = elements.opportunityType.value;
-  const stage = elements.stage.value;
-  const goal = elements.goal.value;
+  const idea = String((elements.ideaInput && elements.ideaInput.value) || "").trim();
+  const roleTitle = String((elements.roleTitleInput && elements.roleTitleInput.value) || "").trim();
+  const industry = String((elements.industryInput && elements.industryInput.value) || "").trim();
+  const companyStage = String((elements.companyStageInput && elements.companyStageInput.value) || "").trim();
+  const hiringChallenge = String((elements.hiringChallengeInput && elements.hiringChallengeInput.value) || "").trim();
 
-  if (!idea) {
+  const previewSignal = [roleTitle, industry, hiringChallenge, idea].filter(Boolean).join(" ");
+  const searchType = inferOpportunityType(previewSignal);
+  const clarity = inferClarity([idea, hiringChallenge].filter(Boolean).join(" "));
+  const pathway = inferPathway([idea, hiringChallenge].filter(Boolean).join(" "), companyStage, "Build full recruiter operating system");
+  const confidence = inferConfidence([idea, hiringChallenge].filter(Boolean).join(" "), clarity);
+
+  if (!idea && !roleTitle && !industry && !hiringChallenge) {
     elements.liveCard.innerHTML = `
       <div class="preview-grid">
         <div class="preview-sample">
           <h4>Sample While Idle</h4>
-          <p>Input: Senior AE role brief is vague and keeps failing.</p>
+          <p>Input: Senior AE brief is vague and keeps producing weak shortlists.</p>
           <ul class="preview-sample-list">
-            <li>Diagnosis: role brief has hidden failure assumptions</li>
-            <li>Build Track: Full Recruiter Operating System</li>
-            <li>Output: corrected thesis, rubric, interview, outreach, 21-day sprint</li>
+            <li>Diagnosis: brief has hidden failure assumptions.</li>
+            <li>Build Track: Full Recruiter Operating System.</li>
+            <li>Output: corrected thesis, rubric, interview, outreach, and 21-day sprint.</li>
           </ul>
         </div>
         <div class="preview-row">
@@ -1195,32 +1262,41 @@ function renderLiveCardPreview() {
           <p>Recruitment / Headhunting</p>
         </div>
         <div class="preview-row">
-          <h4>Brief Clarity</h4>
-          <p>Semi-clear</p>
+          <h4>Company Stage</h4>
+          <p>Series A-B</p>
         </div>
         <div class="preview-row">
           <h4>Build Track</h4>
-          <p>Recruiter Workflow Build</p>
+          <p>Full Recruiter Operating System</p>
         </div>
         <div class="preview-row">
           <h4>Confidence</h4>
-          <p>MEDIUM</p>
+          <p>LOW</p>
         </div>
       </div>
     `;
     return;
   }
 
-  const opportunityType = selectedType === "Auto" ? inferOpportunityType(idea) : selectedType;
-  const clarity = inferClarity(idea);
-  const pathway = inferPathway(idea, stage, goal);
-  const confidence = inferConfidence(idea, clarity);
+  const roleSnapshot = [roleTitle || "Role pending", industry || "Industry pending"].join(" • ");
+  const nextStep =
+    pathway === "Discovery System"
+      ? "Run blind-spot diagnosis and lock the corrected search thesis before sourcing."
+      : "Generate screening rubric, interview calibration, and 21-day execution cadence.";
 
   elements.liveCard.innerHTML = `
     <div class="preview-grid">
       <div class="preview-row">
         <h4>Search Type</h4>
-        <p>${escapeHtml(opportunityType)}</p>
+        <p>${escapeHtml(searchType)}</p>
+      </div>
+      <div class="preview-row">
+        <h4>Role Snapshot</h4>
+        <p>${escapeHtml(roleSnapshot)}</p>
+      </div>
+      <div class="preview-row">
+        <h4>Company Stage</h4>
+        <p>${escapeHtml(companyStage || "Not set")}</p>
       </div>
       <div class="preview-row">
         <h4>Brief Clarity</h4>
@@ -1236,7 +1312,7 @@ function renderLiveCardPreview() {
       </div>
       <div class="preview-row">
         <h4>Recommended Next Step</h4>
-        <p>${escapeHtml(pathway === "Discovery System" ? "Run blind-spot diagnosis and correct the search thesis" : "Build screening rubric, interview structure, and 21-day sprint")}</p>
+        <p>${escapeHtml(nextStep)}</p>
       </div>
     </div>
   `;
