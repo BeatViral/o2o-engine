@@ -3009,6 +3009,88 @@ main {
   letter-spacing: 0.01em;
 }
 
+#demoRecruitmentBtn {
+  position: relative;
+  overflow: hidden;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  color: #281400;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: linear-gradient(120deg, #ffe066 0%, #ffb703 38%, #ff6a2b 72%, #ff3f2f 100%);
+  box-shadow:
+    0 0 0 2px rgba(255, 185, 41, 0.34),
+    0 14px 28px rgba(255, 104, 43, 0.4),
+    0 0 24px rgba(255, 178, 55, 0.56);
+  animation: sampleCtaPulse 1.7s ease-in-out infinite;
+}
+
+#demoRecruitmentBtn::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -40%;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  animation: sampleCtaSweep 2.2s ease-in-out infinite;
+}
+
+#demoRecruitmentBtn:hover {
+  transform: translateY(-2px) scale(1.03);
+  filter: saturate(1.15) brightness(1.03);
+  box-shadow:
+    0 0 0 2px rgba(255, 206, 84, 0.38),
+    0 18px 34px rgba(255, 82, 31, 0.45),
+    0 0 30px rgba(255, 184, 69, 0.66);
+}
+
+#demoRecruitmentBtn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.96),
+    0 0 0 6px rgba(255, 155, 33, 0.52),
+    0 18px 34px rgba(255, 82, 31, 0.44),
+    0 0 34px rgba(255, 184, 69, 0.7);
+}
+
+#demoRecruitmentBtn:disabled {
+  opacity: 0.72;
+  animation: none;
+}
+
+@keyframes sampleCtaPulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 2px rgba(255, 185, 41, 0.34),
+      0 14px 28px rgba(255, 104, 43, 0.4),
+      0 0 24px rgba(255, 178, 55, 0.56);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 2px rgba(255, 214, 110, 0.45),
+      0 18px 34px rgba(255, 85, 29, 0.5),
+      0 0 34px rgba(255, 194, 94, 0.72);
+  }
+}
+
+@keyframes sampleCtaSweep {
+  0% {
+    left: -40%;
+  }
+
+  55% {
+    left: 115%;
+  }
+
+  100% {
+    left: 115%;
+  }
+}
+
 .output {
   margin-top: 1.2rem;
 }
