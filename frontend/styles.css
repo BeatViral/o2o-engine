@@ -1943,14 +1943,22 @@ textarea {
 
 .diagnostic-output-shell {
   display: grid;
-  gap: 0.9rem;
+  gap: 1rem;
+  overflow-x: clip;
+}
+
+.diagnostic-output-shell > .panel {
+  position: relative;
+  overflow: hidden;
 }
 
 .risk-scan-panel {
-  border-color: rgba(0, 216, 222, 0.42);
+  border: 1px solid rgba(0, 216, 222, 0.5);
+  border-top: 5px solid rgba(0, 216, 222, 0.8);
   background:
     radial-gradient(circle at 88% 18%, rgba(0, 216, 222, 0.2), rgba(0, 216, 222, 0) 40%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.97), rgba(237, 253, 254, 0.9));
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(235, 252, 254, 0.92));
+  box-shadow: 0 20px 40px rgba(8, 36, 40, 0.18), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
 }
 
 .risk-scan-head h3,
@@ -1988,7 +1996,8 @@ textarea {
   border: 1px solid rgba(14, 82, 88, 0.2);
   border-radius: 12px;
   padding: 0.62rem;
-  background: rgba(255, 255, 255, 0.88);
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.92), rgba(240, 252, 253, 0.86));
+  box-shadow: 0 8px 20px rgba(7, 45, 49, 0.1);
 }
 
 .risk-metric-label {
@@ -2004,6 +2013,13 @@ textarea {
   font-family: "Bricolage Grotesque", sans-serif;
   font-size: 1.36rem;
   color: #132f35;
+}
+
+.risk-score-total {
+  margin-left: 0.16rem;
+  font-size: 0.78rem;
+  font-family: "IBM Plex Mono", monospace;
+  color: #365b63;
 }
 
 .risk-meter {
@@ -2027,8 +2043,10 @@ textarea {
   align-items: center;
   justify-content: space-between;
   gap: 0.65rem;
-  border-top: 1px solid rgba(14, 82, 88, 0.16);
-  padding-top: 0.66rem;
+  border: 1px solid rgba(14, 82, 88, 0.24);
+  border-radius: 12px;
+  padding: 0.66rem 0.72rem;
+  background: rgba(255, 255, 255, 0.78);
 }
 
 .risk-label,
@@ -2055,9 +2073,9 @@ textarea {
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  padding: 0.28rem 0.7rem;
-  min-width: 86px;
-  font-size: 0.76rem;
+  padding: 0.34rem 0.84rem;
+  min-width: 96px;
+  font-size: 0.8rem;
   letter-spacing: 0.07em;
   text-transform: uppercase;
   font-weight: 800;
@@ -2078,71 +2096,169 @@ textarea {
   background: rgba(0, 216, 153, 0.22);
 }
 
-.blindspot-diagnosis-panel {
-  border-color: rgba(255, 106, 43, 0.42);
+.blindspot-report-panel {
+  border: 2px solid rgba(255, 106, 43, 0.66);
+  border-left: 8px solid rgba(255, 106, 43, 0.96);
   background:
-    radial-gradient(circle at 94% 12%, rgba(255, 200, 87, 0.2), rgba(255, 200, 87, 0) 42%),
-    linear-gradient(160deg, rgba(255, 255, 255, 0.97), rgba(255, 244, 234, 0.9));
+    radial-gradient(circle at 94% 12%, rgba(255, 200, 87, 0.24), rgba(255, 200, 87, 0) 42%),
+    linear-gradient(160deg, rgba(255, 255, 255, 0.98), rgba(255, 242, 230, 0.95));
+  box-shadow: 0 24px 44px rgba(87, 43, 17, 0.24), 0 0 0 1px rgba(255, 255, 255, 0.64) inset;
 }
 
-.diagnosis-head .panel-note {
-  margin-top: 0.36rem;
+.blindspot-report-panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, rgba(255, 106, 43, 0.96), rgba(255, 200, 87, 0.9));
 }
 
-.diagnosis-need-grid {
-  margin-top: 0.7rem;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.62rem;
+.blindspot-report-lead {
+  margin: 0.48rem 0 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.02rem, 1.65vw, 1.18rem);
+  color: #5b2610;
+  font-weight: 700;
 }
 
-.diagnosis-need-card {
-  border: 1px solid rgba(17, 77, 84, 0.22);
-  border-radius: 12px;
-  padding: 0.7rem;
-  background: rgba(255, 255, 255, 0.86);
+.blindspot-input-snapshot {
+  margin: 0.5rem 0 0;
+  border: 1px solid rgba(111, 57, 28, 0.24);
+  border-left: 4px solid rgba(111, 57, 28, 0.66);
+  border-radius: 10px;
+  padding: 0.5rem 0.58rem;
+  font-size: 0.88rem;
+  color: #4b2b1f;
+  background: rgba(255, 255, 255, 0.72);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.diagnosis-need-card h4 {
-  margin: 0;
-  font-size: 0.76rem;
+.blindspot-input-snapshot span {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.74rem;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #31545b;
+  color: #6a3a21;
+  margin-right: 0.35rem;
 }
 
-.diagnosis-need-card p {
-  margin: 0.35rem 0 0;
-  color: #203840;
-}
-
-.diagnosis-need-card.emphasis {
-  border-color: rgba(255, 106, 43, 0.4);
-  background: linear-gradient(140deg, rgba(255, 106, 43, 0.12), rgba(255, 255, 255, 0.92));
-}
-
-.diagnosis-list-grid {
-  margin-top: 0.72rem;
+.blindspot-card-grid {
+  margin-top: 0.76rem;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.62rem;
+  gap: 0.66rem;
+  min-width: 0;
 }
 
-.diagnosis-list-card {
-  border: 1px solid rgba(13, 72, 79, 0.2);
+.blindspot-risk-card {
+  min-width: 0;
+  border: 1px solid rgba(90, 49, 25, 0.28);
+  border-left: 4px solid rgba(148, 81, 40, 0.64);
   border-radius: 12px;
-  padding: 0.66rem;
-  background: rgba(255, 255, 255, 0.9);
+  padding: 0.72rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 246, 240, 0.9));
+  box-shadow: 0 10px 22px rgba(70, 38, 19, 0.1);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.diagnosis-list-card h4 {
-  margin: 0;
+.blindspot-risk-card.role-confusion {
+  border-left-color: rgba(28, 120, 130, 0.72);
+}
+
+.blindspot-risk-card.wrong-candidate {
+  border-left-color: rgba(236, 130, 35, 0.78);
+}
+
+.blindspot-risk-card.salary-mismatch {
+  border-left-color: rgba(174, 90, 41, 0.8);
+}
+
+.blindspot-risk-card.missing-evidence {
+  border-left-color: rgba(198, 76, 28, 0.82);
+}
+
+.blindspot-risk-card.thesis-card {
+  grid-column: 1 / -1;
+  border-left-color: rgba(255, 106, 43, 0.9);
+  background:
+    radial-gradient(circle at 94% 16%, rgba(255, 200, 87, 0.22), rgba(255, 200, 87, 0) 42%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(255, 241, 233, 0.94));
+}
+
+.risk-card-head {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.83rem;
-  letter-spacing: 0.03em;
-  color: #173841;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.risk-card-index {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #f6fcfd;
+  background: linear-gradient(135deg, #0a7f87, #00bfc7);
+  box-shadow: 0 6px 14px rgba(5, 103, 110, 0.22);
+}
+
+.risk-card-head h4 {
+  margin: 0;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: 1.02rem;
+  color: #3e2418;
+}
+
+.risk-card-fields {
+  margin-top: 0.54rem;
+  display: grid;
+  gap: 0.46rem;
+  min-width: 0;
+}
+
+.risk-field {
+  min-width: 0;
+  border: 1px solid rgba(17, 77, 84, 0.18);
+  border-radius: 10px;
+  padding: 0.5rem 0.56rem;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.risk-field-label {
+  margin: 0;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #35555f;
+}
+
+.risk-field-value {
+  margin: 0.28rem 0 0;
+  color: #203942;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.thesis-card-copy {
+  margin: 0.56rem 0 0;
+  font-size: clamp(0.98rem, 1.3vw, 1.08rem);
+  font-weight: 700;
+  line-height: 1.54;
+  color: #3c2317;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .diag-icon {
@@ -2156,68 +2272,50 @@ textarea {
   background: rgba(16, 78, 85, 0.12);
 }
 
-.diagnosis-list {
-  margin: 0.48rem 0 0;
-  padding-left: 1rem;
+.diag-icon-solid {
+  background: rgba(255, 106, 43, 0.2);
 }
 
-.diagnosis-list li {
-  margin: 0.28rem 0;
-  color: #24404a;
+.corrected-search-thesis-panel {
+  border: 1px solid rgba(255, 106, 43, 0.56);
+  border-left: 8px solid rgba(255, 106, 43, 0.92);
+  background:
+    radial-gradient(circle at 92% 14%, rgba(255, 200, 87, 0.26), rgba(255, 200, 87, 0) 44%),
+    linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(255, 244, 235, 0.94));
+  box-shadow: 0 20px 38px rgba(85, 44, 18, 0.16);
 }
 
-.diagnosis-text-card {
-  margin-top: 0.72rem;
-  border: 1px solid rgba(13, 72, 79, 0.2);
-  border-radius: 12px;
-  padding: 0.7rem;
-  background: rgba(255, 255, 255, 0.88);
-}
-
-.diagnosis-text-card h4 {
-  margin: 0;
-  font-size: 0.8rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: #2b4f58;
-}
-
-.diagnosis-text-card p {
+.thesis-head h3 {
   margin: 0.35rem 0 0;
-  color: #21414a;
-}
-
-.corrected-thesis-card {
-  margin-top: 0.72rem;
-  border: 1px solid rgba(255, 106, 43, 0.4);
-  border-left: 5px solid rgba(255, 106, 43, 0.84);
-  border-radius: 14px;
-  padding: 0.78rem 0.82rem;
-  background: linear-gradient(135deg, rgba(255, 106, 43, 0.12), rgba(255, 255, 255, 0.9));
-}
-
-.corrected-thesis-card h4 {
-  margin: 0;
   display: flex;
   align-items: center;
-  gap: 0.42rem;
-  font-size: 0.86rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #5f2b0f;
+  gap: 0.48rem;
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.24rem, 2vw, 1.62rem);
+  color: #4a2515;
 }
 
-.corrected-thesis-card p {
-  margin: 0.4rem 0 0;
-  font-weight: 650;
-  color: #3f2517;
+.thesis-statement {
+  margin: 0.56rem 0 0;
+  font-size: clamp(1rem, 1.45vw, 1.14rem);
+  font-weight: 700;
+  line-height: 1.5;
+  color: #3f2214;
+}
+
+.thesis-note {
+  margin: 0.44rem 0 0;
+  border-top: 1px dashed rgba(110, 58, 31, 0.28);
+  padding-top: 0.42rem;
+  color: #5c3725;
+  font-size: 0.9rem;
 }
 
 .module-divider {
   display: flex;
   align-items: center;
   gap: 0.52rem;
-  margin: 0.1rem 0;
+  margin: 0.16rem 0;
 }
 
 .module-divider::before,
@@ -2230,10 +2328,14 @@ textarea {
 
 .module-divider span {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #2a4f57;
+  border: 1px solid rgba(13, 74, 81, 0.22);
+  border-radius: 999px;
+  padding: 0.2rem 0.56rem;
+  background: rgba(255, 255, 255, 0.86);
 }
 
 .module-card-grid {
@@ -2245,6 +2347,7 @@ textarea {
 .module-card {
   padding: 1rem;
   border-color: rgba(0, 216, 222, 0.24);
+  border-top: 3px solid rgba(0, 216, 222, 0.34);
   background: linear-gradient(160deg, rgba(255, 255, 255, 0.94), rgba(244, 252, 252, 0.84));
 }
 
@@ -2391,15 +2494,31 @@ textarea {
   font-size: 0.82rem;
 }
 
-.result-list,
-.timeline-list {
+.result-list {
   margin: 0.45rem 0 0;
   padding-left: 1rem;
 }
 
-.result-list li,
-.timeline-list li {
+.result-list li {
   margin: 0.24rem 0;
+  color: #23424c;
+}
+
+.timeline-list {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.timeline-list li {
+  margin: 0;
+  border: 1px solid rgba(14, 74, 80, 0.2);
+  border-left: 4px solid rgba(0, 216, 222, 0.58);
+  border-radius: 10px;
+  padding: 0.45rem 0.56rem;
+  background: rgba(255, 255, 255, 0.9);
   color: #23424c;
 }
 
@@ -2519,6 +2638,7 @@ textarea {
 
 @media (max-width: 1000px) {
   .risk-metric-grid,
+  .blindspot-card-grid,
   .diagnosis-need-grid,
   .diagnosis-list-grid,
   .module-card-grid,
@@ -2572,5 +2692,464 @@ textarea {
     width: 30px;
     height: 30px;
     margin-bottom: 0.2rem;
+  }
+}
+
+/* Executive diagnostic redesign override */
+:root {
+  --deck-bg-a: #f4efe5;
+  --deck-bg-b: #e8decd;
+  --deck-ink: #13252f;
+  --deck-subtle: #3a535f;
+  --deck-cyan: #0fa8b0;
+  --deck-orange: #df6d2f;
+  --deck-card: #fbfcfd;
+  --deck-line: rgba(16, 72, 79, 0.17);
+  --deck-shadow-lg: 0 26px 52px rgba(8, 28, 37, 0.16);
+  --deck-shadow-md: 0 14px 28px rgba(8, 30, 38, 0.11);
+}
+
+body {
+  color: var(--deck-ink);
+  background:
+    radial-gradient(circle at 8% 14%, rgba(0, 193, 204, 0.18), rgba(0, 193, 204, 0) 35%),
+    radial-gradient(circle at 88% 22%, rgba(223, 109, 47, 0.17), rgba(223, 109, 47, 0) 36%),
+    linear-gradient(165deg, var(--deck-bg-a) 0%, var(--deck-bg-b) 100%);
+}
+
+.site-header {
+  position: sticky;
+  top: 0.45rem;
+  z-index: 32;
+  margin-top: 0.8rem;
+  border: 1px solid rgba(13, 78, 84, 0.22);
+  border-radius: 16px;
+  padding: 0.72rem 0.9rem;
+  backdrop-filter: blur(12px);
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.82), rgba(241, 250, 251, 0.72));
+  box-shadow: 0 14px 34px rgba(8, 30, 38, 0.12);
+}
+
+.brand-mark {
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 8px 16px rgba(9, 87, 95, 0.24);
+}
+
+.header-cta {
+  border-color: rgba(14, 96, 104, 0.3);
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.92), rgba(233, 250, 252, 0.84));
+}
+
+main {
+  width: min(1220px, calc(100% - 1.5rem));
+}
+
+.hero {
+  margin-top: 0.92rem;
+  border: 1px solid rgba(15, 88, 95, 0.26);
+  border-radius: 22px;
+  padding: clamp(2rem, 3vw, 2.8rem) clamp(1rem, 2.2vw, 1.7rem) clamp(1.6rem, 2vw, 2.1rem);
+  background:
+    linear-gradient(100deg, rgba(255, 255, 255, 0.9), rgba(242, 251, 252, 0.76)),
+    radial-gradient(circle at 86% 12%, rgba(255, 200, 87, 0.2), rgba(255, 200, 87, 0) 42%);
+  box-shadow: var(--deck-shadow-lg);
+}
+
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(15, 168, 176, 0.86), rgba(223, 109, 47, 0.84));
+}
+
+.hero h1 {
+  color: #112732;
+  letter-spacing: -0.03em;
+  max-width: 980px;
+  font-size: clamp(2.2rem, 5.4vw, 4.75rem);
+}
+
+.hero-subline {
+  max-width: 840px;
+  color: #2c4652;
+  font-size: clamp(1rem, 1.3vw, 1.12rem);
+  line-height: 1.56;
+}
+
+.hero-intel-note {
+  border-left-color: rgba(223, 109, 47, 0.92);
+  border-left-width: 5px;
+  background: linear-gradient(95deg, rgba(223, 109, 47, 0.2), rgba(255, 255, 255, 0.74));
+}
+
+.hero-run-btn {
+  min-height: 50px;
+  padding: 0.84rem 1.38rem;
+  font-size: 0.96rem;
+  box-shadow: 0 16px 28px rgba(10, 109, 116, 0.3);
+}
+
+.panel {
+  background: linear-gradient(156deg, rgba(255, 255, 255, 0.95), rgba(246, 251, 251, 0.88));
+  border: 1px solid var(--deck-line);
+  border-radius: 18px;
+  box-shadow: var(--deck-shadow-md);
+}
+
+.example-case,
+.builds-panel,
+.early-access-panel,
+.diagnostic-intake,
+.module-card,
+.risk-scan-panel,
+.blindspot-report-panel {
+  border-radius: 16px;
+}
+
+.example-case,
+.builds-panel,
+.diagnostic-intake,
+.risk-scan-panel,
+.blindspot-report-panel,
+.module-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.example-case::before,
+.builds-panel::before,
+.diagnostic-intake::before,
+.risk-scan-panel::before,
+.blindspot-report-panel::before,
+.module-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(15, 168, 176, 0.72), rgba(223, 109, 47, 0.68));
+  pointer-events: none;
+}
+
+.diagnostic-intake {
+  border-color: rgba(13, 92, 100, 0.28);
+  background:
+    linear-gradient(150deg, rgba(255, 255, 255, 0.96), rgba(238, 248, 249, 0.9)),
+    radial-gradient(circle at 95% 8%, rgba(15, 168, 176, 0.13), rgba(15, 168, 176, 0) 36%);
+}
+
+.diagnostic-intake label {
+  font-size: 0.77rem;
+  letter-spacing: 0.08em;
+  color: #2f4d57;
+}
+
+.diagnostic-intake textarea,
+.diagnostic-intake select,
+.diagnostic-intake input {
+  border: 1px solid rgba(22, 85, 92, 0.22);
+  background: linear-gradient(130deg, rgba(255, 255, 255, 0.98), rgba(246, 251, 252, 0.95));
+}
+
+.diagnostic-intake textarea:focus,
+.diagnostic-intake select:focus,
+.diagnostic-intake input:focus {
+  border-color: rgba(15, 168, 176, 0.64);
+  box-shadow: 0 0 0 3px rgba(15, 168, 176, 0.16), 0 10px 20px rgba(7, 68, 75, 0.08);
+}
+
+.action-row {
+  border-top: 1px dashed rgba(15, 88, 95, 0.25);
+  padding-top: 0.84rem;
+}
+
+.primary-btn,
+.secondary-btn,
+.upload-clear {
+  letter-spacing: 0.01em;
+}
+
+.output {
+  margin-top: 1.2rem;
+}
+
+.diagnostic-output-shell {
+  gap: 1.15rem;
+  overflow-x: clip;
+}
+
+.diagnostic-output-shell > .panel {
+  min-width: 0;
+}
+
+.diagnosis-kicker {
+  color: #0d5960;
+  font-size: 0.73rem;
+  letter-spacing: 0.1em;
+}
+
+.risk-scan-panel {
+  border: 1px solid rgba(11, 58, 66, 0.62);
+  padding: 1rem 1rem 1.05rem;
+  background:
+    radial-gradient(circle at 90% 10%, rgba(43, 196, 207, 0.28), rgba(43, 196, 207, 0) 38%),
+    linear-gradient(145deg, #0c2d39 0%, #114150 62%, #165869 100%);
+  box-shadow: 0 22px 40px rgba(7, 29, 38, 0.34);
+}
+
+.risk-scan-panel .diagnosis-kicker {
+  color: rgba(176, 241, 245, 0.94);
+}
+
+.risk-scan-head h3 {
+  font-size: clamp(1.54rem, 2.5vw, 2rem);
+  color: #ecfdff;
+  letter-spacing: -0.015em;
+}
+
+.risk-scan-note {
+  color: rgba(212, 243, 246, 0.94);
+  font-size: 0.99rem;
+}
+
+.risk-metric-grid {
+  gap: 0.7rem;
+}
+
+.risk-metric-card {
+  border: 1px solid rgba(121, 223, 231, 0.24);
+  border-radius: 14px;
+  padding: 0.78rem;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.14), rgba(184, 230, 235, 0.07));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.risk-metric-label {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.05em;
+  color: rgba(193, 240, 244, 0.9);
+}
+
+.risk-metric-score {
+  font-size: clamp(1.45rem, 2vw, 1.72rem);
+  line-height: 1;
+  color: #f1fdff;
+}
+
+.risk-score-total {
+  color: rgba(200, 237, 240, 0.9);
+}
+
+.risk-meter {
+  background: rgba(195, 232, 236, 0.25);
+}
+
+.risk-level-row {
+  margin-top: 0.84rem;
+  border: 1px solid rgba(124, 220, 229, 0.26);
+  border-radius: 12px;
+  padding: 0.74rem 0.8rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(178, 231, 237, 0.07));
+}
+
+.risk-label {
+  color: rgba(198, 239, 243, 0.86);
+}
+
+.risk-score {
+  font-size: 1.16rem;
+  color: #f2fdff;
+}
+
+.risk-pill {
+  min-width: 104px;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.blindspot-report-panel {
+  border: 2px solid rgba(223, 109, 47, 0.58);
+  border-left-width: 10px;
+  padding: 1rem 1rem 1.08rem;
+  background:
+    linear-gradient(156deg, rgba(255, 255, 255, 0.98), rgba(255, 241, 230, 0.95)),
+    radial-gradient(circle at 90% 12%, rgba(255, 200, 87, 0.24), rgba(255, 200, 87, 0) 40%);
+  box-shadow: 0 22px 42px rgba(83, 39, 15, 0.2);
+}
+
+.blindspot-report-lead {
+  margin-top: 0.52rem;
+  font-size: clamp(1.08rem, 1.8vw, 1.3rem);
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-weight: 700;
+  color: #5d2711;
+}
+
+.blindspot-input-snapshot {
+  margin-top: 0.56rem;
+  border: 1px solid rgba(93, 47, 23, 0.24);
+  border-left: 4px solid rgba(93, 47, 23, 0.68);
+  border-radius: 12px;
+  padding: 0.58rem 0.62rem;
+  font-size: 0.89rem;
+  color: #493125;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.blindspot-card-grid {
+  margin-top: 0.82rem;
+  gap: 0.74rem;
+  align-items: stretch;
+}
+
+.blindspot-risk-card {
+  border: 1px solid rgba(86, 45, 24, 0.28);
+  border-left-width: 5px;
+  border-radius: 14px;
+  padding: 0.78rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.97), rgba(251, 246, 241, 0.95));
+  box-shadow: 0 12px 22px rgba(64, 33, 16, 0.11);
+  min-width: 0;
+}
+
+.risk-card-head {
+  border-bottom: 1px dashed rgba(84, 47, 26, 0.22);
+  padding-bottom: 0.42rem;
+}
+
+.risk-card-head h4 {
+  font-size: 1.08rem;
+  color: #3c2418;
+  letter-spacing: -0.01em;
+}
+
+.risk-card-index {
+  width: 30px;
+  height: 30px;
+  background: linear-gradient(135deg, #066d74, #18b7bf);
+  box-shadow: 0 8px 16px rgba(7, 95, 101, 0.24);
+}
+
+.risk-field {
+  border: 1px solid rgba(16, 76, 84, 0.2);
+  border-radius: 11px;
+  padding: 0.52rem 0.62rem;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.9), rgba(249, 252, 252, 0.84));
+}
+
+.risk-field-label {
+  font-size: 0.69rem;
+  letter-spacing: 0.06em;
+  color: #3f5d67;
+}
+
+.risk-field-value {
+  margin-top: 0.28rem;
+  line-height: 1.5;
+  color: #223b45;
+  overflow-wrap: anywhere;
+  font-size: 0.98rem;
+}
+
+.thesis-card {
+  border-left-width: 6px;
+}
+
+.thesis-card-copy {
+  font-size: clamp(1.01rem, 1.42vw, 1.14rem);
+  line-height: 1.58;
+}
+
+.module-divider {
+  margin: 0.18rem 0 0.02rem;
+}
+
+.module-divider span {
+  font-size: 0.76rem;
+  border-color: rgba(13, 74, 81, 0.26);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.module-card-grid {
+  gap: 0.8rem;
+}
+
+.module-card {
+  border: 1px solid rgba(13, 85, 92, 0.22);
+  border-top: 4px solid rgba(15, 168, 176, 0.44);
+  padding: 1rem 1.02rem;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.97), rgba(243, 250, 251, 0.91));
+}
+
+.module-card h3 {
+  font-size: clamp(1.15rem, 1.8vw, 1.38rem);
+  color: #17333c;
+  letter-spacing: -0.01em;
+}
+
+.module-card h4 {
+  color: #335561;
+}
+
+.boolean-code-card {
+  border-radius: 12px;
+  background: linear-gradient(165deg, rgba(10, 31, 41, 0.97), rgba(14, 50, 63, 0.95));
+}
+
+.timeline-body {
+  border: 1px solid rgba(14, 74, 80, 0.22);
+  border-radius: 12px;
+  padding: 0.62rem;
+}
+
+.timeline-list li {
+  border-left-width: 5px;
+}
+
+@media (max-width: 1000px) {
+  .site-header {
+    position: static;
+  }
+
+  .blindspot-card-grid,
+  .module-card-grid,
+  .risk-metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .blindspot-risk-card.thesis-card {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  main {
+    width: calc(100% - 1rem);
+  }
+
+  .site-header {
+    border-radius: 14px;
+    padding: 0.64rem 0.72rem;
+  }
+
+  .hero {
+    border-radius: 18px;
+    padding: 1.75rem 0.9rem 1.4rem;
+  }
+
+  .risk-metric-card,
+  .blindspot-risk-card,
+  .module-card {
+    padding: 0.7rem;
+  }
+
+  .risk-card-head h4 {
+    font-size: 0.98rem;
   }
 }

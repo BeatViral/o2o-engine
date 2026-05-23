@@ -1044,7 +1044,7 @@ function showSampleDiagnosisOutput() {
 function buildRecruitmentSampleSystem() {
   return {
     executive_summary:
-      "The brief asks for a strong closer, but the real risk is hiring someone who closes fast yet fails in a longer sales cycle.",
+      "This brief asks for a strong closer, but the real risk is hiring someone who can close fast and still fail in a longer sales cycle.",
     system_card: {
       opportunity_type: "Agency Client Intake",
       clarity_level: "Vague",
@@ -1086,8 +1086,9 @@ function buildRecruitmentSampleSystem() {
       generated_at: new Date().toISOString()
     },
     recruitment_operating_system: {
+      input_brief_snapshot: "Senior Account Executive. 5+ years. Strong closer. Base $120k. Start ASAP.",
       job_ad_diagnosis:
-        "The brief rewards speed and charisma but under-specifies process discipline, pipeline quality, and complex buying-cycle behavior.",
+        "The brief rewards speed and charisma but under-specifies pipeline discipline, CRM hygiene, multi-stakeholder deal control, and complex buying-cycle behavior.",
       candidate_persona:
         "Enterprise-capable AE who keeps clean pipeline data, manages multi-step deals, and works systematically.",
       hidden_success_profile:
@@ -1150,6 +1151,25 @@ function buildRecruitmentSampleSystem() {
       blind_spot_diagnosis: {
         stated_need: "Need a strong closer quickly.",
         likely_real_need: "Need someone who can run disciplined longer-cycle selling.",
+        input_brief_snapshot: "Senior Account Executive. 5+ years. Strong closer. Base $120k. Start ASAP.",
+        candidate_will_look_good_on_paper:
+          "A confident short-cycle closer with strong interview presence, recognizable logos, and high activity numbers.",
+        candidate_may_fail:
+          "They may convert early-stage opportunities but lose control in long-cycle, multi-stakeholder enterprise deals.",
+        evidence_to_screen_for_instead:
+          "Look for forecast accuracy, CRM hygiene, and examples of recovering a slipping enterprise deal with multiple stakeholders.",
+        compensation_signal: "Base $120k can signal a mid-market closer brief rather than an enterprise-cycle operator search.",
+        candidate_market_attracted:
+          "It may attract active short-cycle candidates before it attracts passive enterprise AEs with complex-cycle control.",
+        recruiter_must_clarify:
+          "Clarify target deal size, cycle length, stakeholder complexity, and first-90-day outcomes before outreach.",
+        brief_does_not_test:
+          "The brief does not test pipeline discipline, CRM hygiene, forecast reliability, or patient control through long buying processes.",
+        interview_questions_to_expose: [
+          "Show us a deal you forecasted accurately over multiple months. What did you track weekly?",
+          "Tell us about a multi-stakeholder deal that drifted. How did you recover control?",
+          "Walk us through your CRM hygiene process when carrying a high-value pipeline."
+        ],
         false_assumptions: [
           "Fast closer equals long-cycle success.",
           "Years of experience alone predicts quality."
@@ -1170,7 +1190,7 @@ function buildRecruitmentSampleSystem() {
         passive_candidate_reality:
           "Top candidates are often passive and will only engage when role scope and success targets are concrete.",
         corrected_search_thesis:
-          "Prioritize pipeline discipline, CRM hygiene, and long-cycle execution over pure close-speed signal."
+          "This brief asks for a strong closer, but the real risk is hiring someone who can close fast and still fail in a longer sales cycle. The search should test for pipeline discipline, CRM hygiene, multi-stakeholder deal control and patience through a complex buying process."
       }
     }
   };
@@ -1585,6 +1605,7 @@ function renderSystem(system) {
   const version = system.version || { revision: 1, generated_at: "" };
   const generatedAt = formatResetDate(version.generated_at);
   const riskScan = computeRiskScan(card, blindSpots);
+  const blindSpotReport = buildBlindSpotReport(recruitment, blindSpots, clarification);
 
   elements.outputSection.hidden = false;
   setOutputEmptyState(false);
@@ -1592,52 +1613,94 @@ function renderSystem(system) {
     <div class="diagnostic-output-shell">
       <section class="panel risk-scan-panel fade-in-diagnosis">
         <div class="risk-scan-head">
-          <p class="diagnosis-kicker">Quick Risk Check</p>
-          <h3>Check Risk Before You Search</h3>
-          <p class="risk-scan-note">This shows where the brief could fail.</p>
+          <p class="diagnosis-kicker">Risk Scan</p>
+          <h3>Diagnostic Risk Scan Panel</h3>
+          <p class="risk-scan-note">Read this before persona, sourcing, or outreach. It shows where the brief can fail.</p>
         </div>
         <div class="risk-metric-grid">
-          ${renderRiskMetric("Role Clarity", riskScan.roleClarityScore)}
-          ${renderRiskMetric("Success Clarity", riskScan.successDefinitionScore)}
-          ${renderRiskMetric("Market Match", riskScan.candidateMarketAlignmentScore)}
+          ${renderRiskMetric("Role Clarity Score", riskScan.roleClarityScore)}
+          ${renderRiskMetric("Success Definition Score", riskScan.successDefinitionScore)}
+          ${renderRiskMetric("Candidate-Market Fit Score", riskScan.candidateMarketAlignmentScore)}
         </div>
         <div class="risk-level-row">
           <div>
-            <p class="risk-label">Risk Of Wrong Hire</p>
+            <p class="risk-label">Failure Mode Risk</p>
             <p class="risk-score">${escapeHtml(String(riskScan.failureModeRiskScore))}/100</p>
           </div>
           <span class="risk-pill risk-${riskScan.failureModeRisk.toLowerCase()} pulse-risk">${escapeHtml(riskScan.failureModeRisk)}</span>
         </div>
       </section>
 
-      <section class="panel blindspot-diagnosis-panel fade-in-diagnosis">
+      <section class="panel blindspot-report-panel fade-in-diagnosis">
         <div class="diagnosis-head">
-          <p class="diagnosis-kicker">Blind Spot Analysis</p>
-          <h3>Blind Spot Diagnosis: Fix These First</h3>
-          <p class="panel-note">Fix these issues first so you do not waste weeks searching.</p>
+          <p class="diagnosis-kicker">Blind Spot Diagnosis</p>
+          <h3>Recruiter Diagnostic Report</h3>
+          <p class="blindspot-report-lead">O2O found 5 hiring risks in this brief.</p>
+          ${blindSpotReport.inputBrief
+            ? `<p class="blindspot-input-snapshot"><span>Input:</span> ${escapeHtml(blindSpotReport.inputBrief)}</p>`
+            : ""}
         </div>
-        <div class="diagnosis-need-grid">
-          <article class="diagnosis-need-card">
-            <h4>What You Asked For</h4>
-            <p>${escapeHtml(blindSpots.stated_need || "Not provided.")}</p>
-          </article>
-          <article class="diagnosis-need-card emphasis">
-            <h4>What You Likely Need</h4>
-            <p>${escapeHtml(blindSpots.likely_real_need || "Not inferred yet.")}</p>
-          </article>
+        <div class="blindspot-card-grid">
+          ${renderBlindSpotRiskCard(
+            1,
+            "Role confusion",
+            [
+              { label: "What the brief says", value: blindSpotReport.roleConfusion.whatBriefSays },
+              { label: "What the role may actually require", value: blindSpotReport.roleConfusion.actualRoleNeeds },
+              { label: "Why this matters", value: blindSpotReport.roleConfusion.whyThisMatters }
+            ],
+            "role-confusion"
+          )}
+          ${renderBlindSpotRiskCard(
+            2,
+            "Wrong candidate trap",
+            [
+              {
+                label: "Candidate who will look good on paper",
+                value: blindSpotReport.wrongCandidateTrap.looksGoodOnPaper
+              },
+              { label: "Why they may fail", value: blindSpotReport.wrongCandidateTrap.whyMayFail },
+              {
+                label: "What evidence to screen for instead",
+                value: blindSpotReport.wrongCandidateTrap.evidenceToScreen
+              }
+            ],
+            "wrong-candidate"
+          )}
+          ${renderBlindSpotRiskCard(
+            3,
+            "Salary / level mismatch",
+            [
+              { label: "What the compensation may signal", value: blindSpotReport.salaryMismatch.whatCompSignals },
+              {
+                label: "Which candidate market it may attract",
+                value: blindSpotReport.salaryMismatch.whichMarketAttracts
+              },
+              {
+                label: "What the recruiter must clarify",
+                value: blindSpotReport.salaryMismatch.whatRecruiterMustClarify
+              }
+            ],
+            "salary-mismatch"
+          )}
+          ${renderBlindSpotRiskCard(
+            4,
+            "Missing screening evidence",
+            [
+              { label: "What the brief does not test", value: blindSpotReport.missingEvidence.whatBriefMisses },
+              {
+                label: "Which interview questions should expose it",
+                value: blindSpotReport.missingEvidence.whichQuestionsExpose
+              }
+            ],
+            "missing-evidence"
+          )}
+          ${renderBlindSpotThesisCard(
+            5,
+            "Corrected search thesis",
+            blindSpotReport.correctedSearchThesis
+          )}
         </div>
-        <div class="diagnosis-list-grid">
-          ${renderDiagnosticListCard("&#129513;", "Wrong Assumptions", blindSpots.false_assumptions, "assumptions")}
-          ${renderDiagnosticListCard("&#9888;&#65039;", "How This Hire Could Fail", blindSpots.hidden_failure_modes, "failure-modes")}
-          ${renderDiagnosticListCard("&#128269;", "Risk Of Hiring The Wrong Person", blindSpots.wrong_candidate_risks, "candidate-risks")}
-          ${renderDiagnosticListCard("&#128201;", "Pay Or Level Mismatch", blindSpots.compensation_or_level_mismatch, "mismatch")}
-          ${renderDiagnosticListCard("&#10071;", "Missing Success Targets", blindSpots.missing_success_definition, "missing")}
-        </div>
-        ${renderDiagnosticTextCard("What Good Candidates Will Expect", blindSpots.passive_candidate_reality)}
-        <article class="corrected-thesis-card slide-in-thesis">
-          <h4><span class="diag-icon" aria-hidden="true">&#127919;</span>What To Hire For Instead</h4>
-          <p>${escapeHtml(blindSpots.corrected_search_thesis || "No hiring direction provided.")}</p>
-        </article>
       </section>
 
       <div class="module-divider" role="presentation">
@@ -1776,6 +1839,172 @@ function computeRiskScan(card, blindSpots) {
   };
 }
 
+function buildBlindSpotReport(recruitment, blindSpots, clarification) {
+  const falseAssumptions = toArray(blindSpots.false_assumptions);
+  const hiddenFailureModes = toArray(blindSpots.hidden_failure_modes);
+  const wrongCandidateRisks = toArray(blindSpots.wrong_candidate_risks);
+  const compensationMismatch = toArray(blindSpots.compensation_or_level_mismatch);
+  const missingSuccessDefinition = toArray(blindSpots.missing_success_definition);
+  const clarificationQuestions = toArray(clarification && clarification.questions);
+  const screeningEvidence = extractScreeningEvidence(recruitment.screening_rubric);
+  const interviewEvidence = extractInterviewQuestions(recruitment.interview_questions, 3);
+
+  const inputBrief = firstNonEmptyText([
+    blindSpots.input_brief_snapshot,
+    recruitment.input_brief_snapshot,
+    elements.ideaInput && elements.ideaInput.value
+  ]);
+
+  return {
+    inputBrief,
+    roleConfusion: {
+      whatBriefSays: firstNonEmptyText(
+        [blindSpots.stated_need],
+        "Need a strong closer quickly."
+      ),
+      actualRoleNeeds: firstNonEmptyText(
+        [blindSpots.likely_real_need, recruitment.hidden_success_profile],
+        "Needs disciplined long-cycle execution, not only close speed."
+      ),
+      whyThisMatters: firstNonEmptyText(
+        [hiddenFailureModes[0], wrongCandidateRisks[0]],
+        "If this stays vague, the shortlist can look strong on paper while missing the execution profile this role actually needs."
+      )
+    },
+    wrongCandidateTrap: {
+      looksGoodOnPaper: firstNonEmptyText(
+        [
+          blindSpots.candidate_will_look_good_on_paper,
+          falseAssumptions[0] ? `A candidate aligned to this assumption: ${falseAssumptions[0]}` : ""
+        ],
+        "A polished short-cycle closer with recognizable logos, high activity metrics, and strong interview confidence."
+      ),
+      whyMayFail: firstNonEmptyText(
+        [blindSpots.candidate_may_fail, hiddenFailureModes[0]],
+        "They may close early opportunities but lose control in multi-stakeholder, longer-cycle enterprise deals."
+      ),
+      evidenceToScreen: firstNonEmptyText(
+        [blindSpots.evidence_to_screen_for_instead, screeningEvidence.slice(0, 2).join(" ")],
+        "Screen for forecast accuracy, CRM hygiene, and evidence of recovering a slipping enterprise deal."
+      )
+    },
+    salaryMismatch: {
+      whatCompSignals: firstNonEmptyText(
+        [blindSpots.compensation_signal, compensationMismatch[0]],
+        "The compensation framing may signal urgency for a closer rather than precision for a complex-cycle operator."
+      ),
+      whichMarketAttracts: firstNonEmptyText(
+        [blindSpots.candidate_market_attracted, compensationMismatch[1]],
+        "It can attract active mid-market hunters before passive enterprise operators."
+      ),
+      whatRecruiterMustClarify: firstNonEmptyText(
+        [blindSpots.recruiter_must_clarify, clarificationQuestions[0], missingSuccessDefinition[0]],
+        "Clarify target deal size, cycle length, stakeholder complexity, and first-90-day success targets before outreach."
+      )
+    },
+    missingEvidence: {
+      whatBriefMisses: firstNonEmptyText(
+        [blindSpots.brief_does_not_test, missingSuccessDefinition.join(" ")],
+        "The brief does not test pipeline discipline, CRM hygiene, forecast reliability, or stakeholder control under pressure."
+      ),
+      whichQuestionsExpose: firstNonEmptyText(
+        [toArray(blindSpots.interview_questions_to_expose).join(" "), interviewEvidence.join(" ")],
+        "Use a live deal walkthrough question set to expose forecast discipline, multi-thread control, and resilience in long-cycle selling."
+      )
+    },
+    correctedSearchThesis: firstNonEmptyText(
+      [blindSpots.corrected_search_thesis],
+      "Search for an enterprise-capable AE who demonstrates pipeline discipline, CRM hygiene, multi-stakeholder deal control, and patience through long buying cycles over pure close-speed signal."
+    )
+  };
+}
+
+function firstNonEmptyText(candidates, fallback = "") {
+  const values = Array.isArray(candidates) ? candidates : [candidates];
+  for (const candidate of values) {
+    const value = String(candidate || "").trim();
+    if (value) {
+      return value;
+    }
+  }
+  return String(fallback || "").trim();
+}
+
+function extractScreeningEvidence(rubric) {
+  const list = Array.isArray(rubric) ? rubric : [];
+  return list
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+      return String(item.what_to_look_for || "").trim();
+    })
+    .filter(Boolean);
+}
+
+function extractInterviewQuestions(groups, limit = 3) {
+  if (!groups || typeof groups !== "object") {
+    return [];
+  }
+
+  const keys = ["technical", "behavioral", "execution", "stakeholder"];
+  const questions = [];
+
+  keys.forEach((key) => {
+    toArray(groups[key]).forEach((question) => {
+      if (questions.length >= limit) {
+        return;
+      }
+      questions.push(String(question || "").trim());
+    });
+  });
+
+  return questions.filter(Boolean);
+}
+
+function renderBlindSpotRiskCard(index, title, fields, toneClass = "") {
+  const classes = toneClass ? `blindspot-risk-card ${toneClass}` : "blindspot-risk-card";
+  const normalizedFields = Array.isArray(fields) ? fields : [];
+
+  return `
+    <article class="${classes}">
+      <div class="risk-card-head">
+        <span class="risk-card-index" aria-hidden="true">${escapeHtml(String(index))}</span>
+        <h4>${escapeHtml(title)}</h4>
+      </div>
+      <div class="risk-card-fields">
+        ${normalizedFields
+          .map((field) => {
+            const label = field && typeof field === "object" ? String(field.label || "").trim() : "";
+            const value = field && typeof field === "object" ? String(field.value || "").trim() : "";
+            if (!label && !value) {
+              return "";
+            }
+            return `
+              <section class="risk-field">
+                <p class="risk-field-label">${escapeHtml(label || "Signal")}</p>
+                <p class="risk-field-value">${escapeHtml(value || "Not provided.")}</p>
+              </section>
+            `;
+          })
+          .join("")}
+      </div>
+    </article>
+  `;
+}
+
+function renderBlindSpotThesisCard(index, title, thesisText) {
+  return `
+    <article class="blindspot-risk-card thesis-card">
+      <div class="risk-card-head">
+        <span class="risk-card-index" aria-hidden="true">${escapeHtml(String(index))}</span>
+        <h4>${escapeHtml(title)}</h4>
+      </div>
+      <p class="thesis-card-copy">${escapeHtml(String(thesisText || "No corrected thesis provided."))}</p>
+    </article>
+  `;
+}
+
 function mapClarityScore(level) {
   const normalized = String(level || "").toLowerCase();
 
@@ -1812,7 +2041,7 @@ function renderRiskMetric(label, score) {
   return `
     <article class="risk-metric-card">
       <p class="risk-metric-label">${escapeHtml(label)}</p>
-      <p class="risk-metric-score">${escapeHtml(String(value))}</p>
+      <p class="risk-metric-score">${escapeHtml(String(value))}<span class="risk-score-total">/100</span></p>
       <div class="risk-meter" role="presentation">
         <span style="width: ${value}%"></span>
       </div>
