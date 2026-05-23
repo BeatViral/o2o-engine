@@ -237,7 +237,7 @@ async function checkApiHealth() {
 async function handleBuild(options = {}) {
   const idea = String(options.ideaOverride || elements.ideaInput.value || "").trim();
   if (!idea) {
-    setStatus("Describe the opportunity first", "warning");
+    setStatus("Describe the role brief first", "warning");
     elements.ideaInput.focus();
     return;
   }
@@ -1154,6 +1154,24 @@ function setStatus(text, tone) {
   elements.status.dataset.tone = tone;
 }
 
+function formatBuildTrack(pathway) {
+  const value = String(pathway || "").trim();
+
+  if (value === "Discovery System") {
+    return "Blind-Spot Diagnosis First";
+  }
+
+  if (value === "Workflow System") {
+    return "Recruiter Workflow Build";
+  }
+
+  if (value === "Full Operating System") {
+    return "Full Recruiter Operating System";
+  }
+
+  return value || "Recruiter Workflow Build";
+}
+
 function renderLiveCardPreview() {
   const idea = String(elements.ideaInput.value || "").trim();
   const selectedType = elements.opportunityType.value;
@@ -1168,21 +1186,21 @@ function renderLiveCardPreview() {
           <p>Input: Senior AE role brief is vague and keeps failing.</p>
           <ul class="preview-sample-list">
             <li>Diagnosis: role brief has hidden failure assumptions</li>
-            <li>Pathway: Full Operating System</li>
+            <li>Build Track: Full Recruiter Operating System</li>
             <li>Output: corrected thesis, rubric, interview, outreach, 21-day sprint</li>
           </ul>
         </div>
         <div class="preview-row">
-          <h4>Opportunity Type</h4>
+          <h4>Search Type</h4>
           <p>Recruitment / Headhunting</p>
         </div>
         <div class="preview-row">
-          <h4>Clarity Level</h4>
+          <h4>Brief Clarity</h4>
           <p>Semi-clear</p>
         </div>
         <div class="preview-row">
-          <h4>Output Pathway</h4>
-          <p>Workflow System</p>
+          <h4>Build Track</h4>
+          <p>Recruiter Workflow Build</p>
         </div>
         <div class="preview-row">
           <h4>Confidence</h4>
@@ -1201,16 +1219,16 @@ function renderLiveCardPreview() {
   elements.liveCard.innerHTML = `
     <div class="preview-grid">
       <div class="preview-row">
-        <h4>Opportunity Type</h4>
+        <h4>Search Type</h4>
         <p>${escapeHtml(opportunityType)}</p>
       </div>
       <div class="preview-row">
-        <h4>Clarity Level</h4>
+        <h4>Brief Clarity</h4>
         <p>${escapeHtml(clarity)}</p>
       </div>
       <div class="preview-row">
-        <h4>Output Pathway</h4>
-        <p>${escapeHtml(pathway)}</p>
+        <h4>Build Track</h4>
+        <p>${escapeHtml(formatBuildTrack(pathway))}</p>
       </div>
       <div class="preview-row">
         <h4>Confidence</h4>
@@ -1230,21 +1248,7 @@ function renderSystem(system) {
   const blindSpots = recruitment.blind_spot_diagnosis || {};
   const diagnosis = system.diagnosis || {};
   const clarification = system.clarification || {};
-  const responsibility = system.responsibility_contract || {};
   const knownAssumedUnknown = system.known_assumed_unknown || {};
-  const opportunityMap = system.opportunity_map || {};
-  const executionPlan = system.execution_plan || {};
-  const operatingCadence = system.operating_cadence || {};
-  const pilotPlan = system.pilot_plan || {};
-
-  const workflowSteps = toArray(system.workflow_blueprint);
-  const aiUseCases = toArray(system.ai_use_case_map);
-  const controls = toArray(system.human_in_the_loop_controls);
-  const teamRoles = toArray(system.team_roles);
-  const sopDrafts = toArray(system.sop_drafts);
-  const metrics = toArray(system.metrics);
-  const risks = toArray(system.risks_and_controls);
-  const prioritization = toArray(system.prioritization);
   const nextActions = toArray(system.next_actions);
   const groundingNotes = toArray(system.grounding_notes);
 
@@ -1255,11 +1259,11 @@ function renderSystem(system) {
   elements.output.innerHTML = `
     <div class="result-grid">
       <article class="result-card">
-        <h3>System Card</h3>
+        <h3>Recruiter Search Card</h3>
         <div class="kv-grid">
-          <div class="kv"><strong>Opportunity Type</strong><span>${escapeHtml(card.opportunity_type)}</span></div>
-          <div class="kv"><strong>Clarity Level</strong><span>${escapeHtml(card.clarity_level)}</span></div>
-          <div class="kv"><strong>Output Pathway</strong><span>${escapeHtml(card.output_pathway)}</span></div>
+          <div class="kv"><strong>Search Type</strong><span>${escapeHtml(card.opportunity_type)}</span></div>
+          <div class="kv"><strong>Brief Clarity</strong><span>${escapeHtml(card.clarity_level)}</span></div>
+          <div class="kv"><strong>Build Track</strong><span>${escapeHtml(formatBuildTrack(card.output_pathway))}</span></div>
           <div class="kv"><strong>Confidence</strong><span>${renderBadge(card.confidence_level)}</span></div>
           <div class="kv"><strong>Revision</strong><span>${escapeHtml(String(version.revision || "1"))}</span></div>
           <div class="kv"><strong>Generated At</strong><span>${escapeHtml(version.generated_at || "")}</span></div>
@@ -1315,21 +1319,21 @@ function renderSystem(system) {
       </article>
 
       <article class="result-card">
-        <h3>Diagnosis</h3>
+        <h3>Recruiter Diagnosis Summary</h3>
         <h4>Executive Summary</h4>
         <p>${escapeHtml(system.executive_summary || "")}</p>
-        <h4>Opportunity Type Rationale</h4>
+        <h4>Search Type Rationale</h4>
         <p>${escapeHtml(diagnosis.opportunity_type_rationale || "")}</p>
-        <h4>Clarity Rationale</h4>
+        <h4>Brief Clarity Rationale</h4>
         <p>${escapeHtml(diagnosis.clarity_rationale || "")}</p>
-        <h4>Pathway Rationale</h4>
+        <h4>Build Track Rationale</h4>
         <p>${escapeHtml(diagnosis.pathway_rationale || "")}</p>
         <h4>Confidence Rationale</h4>
         <p>${escapeHtml(diagnosis.confidence_rationale || "")}</p>
       </article>
 
       <article class="result-card">
-        <h3>Clarification Protocol</h3>
+        <h3>Brief Clarification</h3>
         <div class="kv-grid">
           <div class="kv"><strong>Needs Clarification</strong><span>${escapeHtml(String(Boolean(clarification.needs_clarification)))}</span></div>
           <div class="kv"><strong>Assumption Draft Used</strong><span>${escapeHtml(String(Boolean(clarification.assumption_based_draft_used)))}</span></div>
@@ -1345,103 +1349,7 @@ function renderSystem(system) {
       </article>
 
       <article class="result-card">
-        <h3>Responsibility Contract</h3>
-        <div class="kv-grid">
-          <div class="kv"><strong>Decision Support Mode</strong><span>${escapeHtml(responsibility.decision_support_mode || "")}</span></div>
-          <div class="kv"><strong>Smallest Safe Test</strong><span>${escapeHtml(responsibility.smallest_safe_test || "")}</span></div>
-        </div>
-        <h4>Non-prescriptive Notice</h4>
-        <p>${escapeHtml(responsibility.non_prescriptive_notice || "")}</p>
-        <h4>Context Attachment Checks</h4>
-        ${renderList(responsibility.context_attachment_checks)}
-        <h4>Constraint Acknowledgement</h4>
-        ${renderList(responsibility.constraint_acknowledgement)}
-        <h4>Escalation Triggers</h4>
-        ${renderList(responsibility.escalation_triggers)}
-      </article>
-
-      <article class="result-card">
-        <h3>Opportunity Map</h3>
-        <h4>Value</h4>
-        ${renderList(opportunityMap.value)}
-        <h4>Risks</h4>
-        ${renderList(opportunityMap.risks)}
-        <h4>Bottlenecks</h4>
-        ${renderList(opportunityMap.bottlenecks)}
-        <h4>Leverage Points</h4>
-        ${renderList(opportunityMap.leverage_points)}
-      </article>
-
-      <article class="result-card">
-        <h3>Workflow Blueprint</h3>
-        ${renderWorkflowSteps(workflowSteps)}
-      </article>
-
-      <article class="result-card">
-        <h3>AI Use Case Map</h3>
-        ${renderAiUseCases(aiUseCases)}
-      </article>
-
-      <article class="result-card">
-        <h3>Human-in-the-Loop Controls</h3>
-        ${renderControls(controls)}
-        <h4>Team Roles</h4>
-        ${renderTeamRoles(teamRoles)}
-      </article>
-
-      <article class="result-card">
-        <h3>SOP Drafts</h3>
-        ${renderSopDrafts(sopDrafts)}
-      </article>
-
-      <article class="result-card">
-        <h3>Pilot Plan</h3>
-        <div class="kv-grid">
-          <div class="kv"><strong>Duration (days)</strong><span>${escapeHtml(String(pilotPlan.duration_days || ""))}</span></div>
-          <div class="kv"><strong>Objective</strong><span>${escapeHtml(pilotPlan.objective || "")}</span></div>
-        </div>
-        <h4>Week Plan</h4>
-        ${renderList(pilotPlan.week_plan)}
-        <h4>Validation Steps</h4>
-        ${renderList(pilotPlan.validation_steps)}
-
-        <h4>Operating Cadence: Weekly Rhythm</h4>
-        ${renderList(operatingCadence.weekly_rhythm)}
-        <h4>Meetings</h4>
-        ${renderList(operatingCadence.meetings)}
-        <h4>Reviews</h4>
-        ${renderList(operatingCadence.reviews)}
-        <h4>Reporting</h4>
-        ${renderList(operatingCadence.reporting)}
-      </article>
-
-      <article class="result-card">
-        <h3>Execution Plan</h3>
-        ${renderTimeline(executionPlan.timeline)}
-        <h4>Templates</h4>
-        ${renderList(executionPlan.templates)}
-        <h4>Scripts</h4>
-        ${renderList(executionPlan.scripts)}
-        <h4>Prompts</h4>
-        ${renderList(executionPlan.prompts)}
-        <h4>Checklists</h4>
-        ${renderList(executionPlan.checklists)}
-      </article>
-
-      <article class="result-card">
-        <h3>Metrics</h3>
-        ${renderMetrics(metrics)}
-        <h4>Risks and Controls</h4>
-        ${renderRisks(risks)}
-      </article>
-
-      <article class="result-card">
-        <h3>Prioritization Engine</h3>
-        ${renderPrioritization(prioritization)}
-      </article>
-
-      <article class="result-card">
-        <h3>Next Actions</h3>
+        <h3>Recruiter Next Actions</h3>
         ${renderList(nextActions)}
         <h4>Grounding Notes</h4>
         ${renderList(groundingNotes)}
