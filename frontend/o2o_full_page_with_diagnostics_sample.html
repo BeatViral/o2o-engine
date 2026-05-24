@@ -147,6 +147,9 @@ main,
 }
 
 .header-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   color: var(--ink);
   border: 1px solid rgba(0, 216, 222, 0.34);
@@ -1891,13 +1894,12 @@ textarea {
   }
 
   .header-actions {
-    width: 100%;
+    width: auto;
     flex-wrap: wrap;
   }
 
   .header-cta {
-    flex: 1;
-    justify-content: center;
+    flex: 0 0 auto;
   }
 
   .subscriber-menu {
@@ -3796,6 +3798,21 @@ main {
         </ul>
         <div class="hero-cta-row">
           <a class="hero-run-btn" href="#studio">Run Diagnosis</a>
+          <a class="hero-alt-btn" href="#example-output">See Sample Output</a>
+        </div>
+        <div class="hero-metrics" aria-label="How O2O helps recruiters">
+          <article>
+            <h2>Brief + Context In</h2>
+            <p>Paste the role brief and hiring context from your kickoff call.</p>
+          </article>
+          <article>
+            <h2>Diagnosis + Thesis</h2>
+            <p>O2O finds the blind spot and rewrites the search thesis before sourcing begins.</p>
+          </article>
+          <article>
+            <h2>Workflow Out</h2>
+            <p>You get scorecard, interview prompts, outreach draft, and a 21-day plan.</p>
+          </article>
         </div>
       </section>
 

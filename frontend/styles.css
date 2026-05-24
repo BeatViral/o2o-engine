@@ -130,6 +130,9 @@ main,
 }
 
 .header-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   color: var(--ink);
   border: 1px solid rgba(0, 216, 222, 0.34);
@@ -1874,13 +1877,12 @@ textarea {
   }
 
   .header-actions {
-    width: 100%;
+    width: auto;
     flex-wrap: wrap;
   }
 
   .header-cta {
-    flex: 1;
-    justify-content: center;
+    flex: 0 0 auto;
   }
 
   .subscriber-menu {
