@@ -3759,18 +3759,21 @@ main {
 /* Animated glow and star-particle field styling for intake controls */
 .diagnostic-intake textarea,
 .diagnostic-intake input {
-  border: 1px solid rgba(255, 168, 82, 0.5);
+  border: 2px solid rgba(255, 172, 86, 0.78);
   background-image:
-    radial-gradient(circle, rgba(255, 255, 255, 0.72) 0 1.4px, transparent 2px),
-    radial-gradient(circle, rgba(255, 207, 123, 0.8) 0 1.6px, transparent 2.3px),
-    linear-gradient(130deg, rgba(255, 255, 255, 0.98), rgba(244, 252, 255, 0.96));
-  background-size: 170px 120px, 230px 150px, auto;
-  background-position: 0 0, 92px 26px, 0 0;
+    radial-gradient(circle at 14% 22%, rgba(255, 244, 210, 0.95) 0 1.5px, transparent 2.4px),
+    radial-gradient(circle at 68% 64%, rgba(255, 207, 120, 0.9) 0 1.9px, transparent 2.7px),
+    radial-gradient(circle at 34% 78%, rgba(112, 236, 245, 0.86) 0 1.4px, transparent 2.2px),
+    linear-gradient(130deg, rgba(255, 255, 255, 0.99), rgba(243, 251, 255, 0.97));
+  background-size: 170px 120px, 220px 150px, 180px 130px, auto;
+  background-position: 0 0, 96px 34px, 52px 90px, 0 0;
   box-shadow:
-    0 0 0 1px rgba(255, 183, 95, 0.26) inset,
-    0 0 14px rgba(255, 173, 85, 0.2),
-    0 0 22px rgba(0, 216, 222, 0.14);
-  animation: intakeFieldGlow 3.2s ease-in-out infinite, intakeFieldStars 8.5s linear infinite;
+    0 0 0 1px rgba(255, 207, 124, 0.55) inset,
+    0 0 0 2px rgba(255, 169, 81, 0.2),
+    0 0 18px rgba(255, 170, 82, 0.34),
+    0 0 34px rgba(0, 216, 222, 0.24);
+  animation: intakeFieldGlow 2.4s ease-in-out infinite, intakeFieldStars 5.6s linear infinite, intakeFieldAura 3.8s ease-in-out infinite;
+  will-change: box-shadow, background-position, filter;
 }
 
 .diagnostic-intake textarea::placeholder,
@@ -3780,41 +3783,55 @@ main {
 
 .diagnostic-intake textarea:focus,
 .diagnostic-intake input:focus {
-  border-color: rgba(255, 193, 111, 0.92);
+  border-color: rgba(255, 208, 132, 0.98);
   box-shadow:
-    0 0 0 1px rgba(255, 193, 111, 0.56) inset,
-    0 0 0 3px rgba(0, 216, 222, 0.2),
-    0 0 26px rgba(255, 173, 85, 0.35);
+    0 0 0 1px rgba(255, 214, 147, 0.76) inset,
+    0 0 0 4px rgba(0, 216, 222, 0.28),
+    0 0 24px rgba(255, 173, 85, 0.48),
+    0 0 44px rgba(0, 216, 222, 0.3);
 }
 
 @keyframes intakeFieldGlow {
   0%,
   100% {
     box-shadow:
-      0 0 0 1px rgba(255, 183, 95, 0.2) inset,
-      0 0 12px rgba(255, 173, 85, 0.16),
-      0 0 18px rgba(0, 216, 222, 0.12);
+      0 0 0 1px rgba(255, 195, 110, 0.38) inset,
+      0 0 0 2px rgba(255, 169, 81, 0.16),
+      0 0 14px rgba(255, 173, 85, 0.2),
+      0 0 24px rgba(0, 216, 222, 0.14);
   }
 
   50% {
     box-shadow:
-      0 0 0 1px rgba(255, 193, 111, 0.34) inset,
-      0 0 18px rgba(255, 173, 85, 0.28),
-      0 0 26px rgba(0, 216, 222, 0.18);
+      0 0 0 1px rgba(255, 211, 134, 0.64) inset,
+      0 0 0 2px rgba(255, 172, 85, 0.24),
+      0 0 22px rgba(255, 173, 85, 0.38),
+      0 0 36px rgba(0, 216, 222, 0.25);
   }
 }
 
 @keyframes intakeFieldStars {
   0% {
-    background-position: 0 0, 92px 26px, 0 0;
+    background-position: 0 0, 96px 34px, 52px 90px, 0 0;
   }
 
   50% {
-    background-position: 46px 18px, 138px 56px, 0 0;
+    background-position: 64px 24px, 148px 72px, 104px 120px, 0 0;
   }
 
   100% {
-    background-position: 92px 36px, 184px 86px, 0 0;
+    background-position: 128px 48px, 200px 110px, 156px 150px, 0 0;
+  }
+}
+
+@keyframes intakeFieldAura {
+  0%,
+  100% {
+    filter: saturate(1) brightness(1);
+  }
+
+  50% {
+    filter: saturate(1.08) brightness(1.03);
   }
 }
 
