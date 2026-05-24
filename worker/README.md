@@ -2,6 +2,11 @@
 
 Cloudflare Worker backend for O2O Engine. This service holds your OpenAI API key, enforces billing and quotas, persists versioned systems, and proxies Markdown/PDF exports.
 
+Generation modes:
+
+- `mode: "fast"` (default): current GPT construction pipeline + O2O Quality Gate.
+- `mode: "deep"`: multi-pass diagnostic pipeline (reasoning, system construction, quality validation, safe fallback).
+
 ## Endpoints
 
 - `GET /api/health`
@@ -47,6 +52,7 @@ Recruitment outputs also include `recruitment_operating_system.blind_spot_diagno
 ```json
 {
   "idea": "I want to turn our messy onboarding process into an AI-assisted operating system",
+  "mode": "fast",
   "title": "Optional system title",
   "verticalFocus": "Recruitment / Headhunting",
   "demoMode": true,
@@ -64,6 +70,8 @@ Recruitment outputs also include `recruitment_operating_system.blind_spot_diagno
 }
 ```
 
+`mode` is optional. If omitted, backend defaults to `"fast"`.
+
 `imageContext` is optional. Supported types: PNG, JPEG, WebP, GIF up to 2 MB.
 
 Deterministic identity can be provided via header:
@@ -80,6 +88,7 @@ When billing is enforced, include the subscriber session token:
 {
   "systemId": "sys_abc123",
   "versionNumber": 1,
+  "mode": "fast",
   "command": "Turn this into SOPs for a 3-person team",
   "userDeltaContext": "Keep tool stack to Notion and Slack"
 }
@@ -144,6 +153,7 @@ Returns latest persisted system JSON, metadata, current version number, and next
 3. Set `ALLOWED_ORIGIN` to your GitHub Pages origin.
 4. Set secret:
    - `wrangler secret put OPENAI_API_KEY`
+  - `wrangler secret put ANTHROPIC_API_KEY` (required for `mode: "deep"`)
    - `wrangler secret put SESSION_SIGNING_SECRET`
    - Optional: `wrangler secret put LEMON_WEBHOOK_SECRET`
 5. Bind `SUBSCRIBER_KV` in `wrangler.toml`.

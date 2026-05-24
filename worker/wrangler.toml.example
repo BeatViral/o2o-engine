@@ -8,6 +8,7 @@ compatibility_date = "2026-05-22"
 [vars]
 ALLOWED_ORIGIN = "*"
 OPENAI_MODEL = "gpt-4.1-mini"
+ANTHROPIC_MODEL = "claude-3-5-sonnet-latest"
 RATE_LIMIT_PER_MINUTE = "20"
 BILLING_ENFORCED = "false"
 LEMON_VARIANT_PLAN_MAP = "12345:starter,23456:pro,34567:scale"
@@ -34,6 +35,7 @@ PDF_EXPORT_SERVICE_URL = ""
 
 # Required secrets (set with Wrangler):
 # wrangler secret put OPENAI_API_KEY
+# wrangler secret put ANTHROPIC_API_KEY   # required for mode="deep"
 # wrangler secret put SESSION_SIGNING_SECRET
 # Optional for webhook verification:
 # wrangler secret put LEMON_WEBHOOK_SECRET

@@ -24,8 +24,19 @@ const OUTPUT_PATHWAYS = [
 ];
 
 const IMPACT_LABELS = ["HIGH", "MEDIUM", "LOW"];
+const GENERATION_MODES = ["fast", "deep"];
 const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const CLAUDE_DIAGNOSTIC_REQUIRED_KEYS = [
+  "evidence_from_brief",
+  "likely_hidden_risks",
+  "assumptions_to_label",
+  "missing_information",
+  "corrected_search_thesis",
+  "candidate_failure_modes",
+  "recruiter_verification_questions",
+  "confidence_notes"
+];
 const PLAN_LIMITS = {
   starter: {
     plan: "starter",
@@ -665,6 +676,16 @@ const SYSTEM_PROMPT = [
   "- Use responsibility_contract to prove context attachment and non-prescriptive behavior."
 ].join("\n");
 
+const CLAUDE_DIAGNOSTIC_PROMPT = [
+  "You are the O2O diagnostic reasoning layer for recruiter role briefs.",
+  "Your job is ambiguity resolution, hidden risk diagnosis, and behavioral failure-mode analysis.",
+  "Return JSON only with the required keys and no extra keys.",
+  "Do not produce recruiter workflow sections; focus only on diagnosis quality.",
+  "Ground every claim in brief evidence or explicitly mark it as an assumption.",
+  "Avoid generic language and filler. Be concrete and testable.",
+  "Never include markdown, preamble, or commentary outside JSON."
+].join("\n");
+
 export default {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
@@ -1208,10 +1229,15 @@ async function handleBuild(request, env) {
 
   const body = await safeJson(request);
   const userInput = cleanText(body.idea, 12000);
+  const generationMode = resolveGenerationMode(body.mode);
   const imageContext = normalizeImageContext(body.imageContext, imageLimitBytes);
 
   if (!userInput) {
     return corsJson(request, env, { ok: false, message: "Field idea is required." }, 400);
+  }
+
+  if (generationMode === "deep" && !env.ANTHROPIC_API_KEY) {
+    return corsJson(request, env, { ok: false, message: "Missing ANTHROPIC_API_KEY secret for deep mode." }, 500);
   }
 
   if (body.imageContext && !imageContext) {
@@ -1265,10 +1291,16 @@ async function handleBuild(request, env) {
     generated_at: new Date().toISOString()
   };
 
+  const buildContext = buildBuildContextInput(body, userInput);
+
   const normalized = await generateValidatedSystem(env, {
     mode: "build",
+    generationMode,
     payload: inputPayload,
-    sourceInput: userInput,
+    sourceInput: buildContext.sourceInput,
+    briefInput: buildContext.briefInput,
+    hiringContext: buildContext.hiringContext,
+    refineInstruction: "",
     priorSystem: null,
     options: { imageContext },
     userId: identity.user_id
@@ -1304,10 +1336,15 @@ async function handleBuild(request, env) {
     },
     billing_enforced: access.billing_enforced,
     account,
+    pipeline: {
+      mode: generationMode,
+      status: buildPipelineStatusMessage(generationMode)
+    },
     trace: {
       pathway: normalized.system_card.output_pathway,
       clarity: normalized.system_card.clarity_level,
-      confidence: normalized.system_card.confidence_level
+      confidence: normalized.system_card.confidence_level,
+      mode: generationMode
     }
   });
 }
@@ -1328,9 +1365,14 @@ async function handleRefine(request, env) {
   const identity = resolveRequestIdentity(request, subscriber);
 
   const body = await safeJson(request);
+  const generationMode = resolveGenerationMode(body.mode);
   const systemId = cleanText(body.systemId, 120);
   const submittedVersion = Number(body.versionNumber);
   const command = cleanText(body.command, 600);
+
+  if (generationMode === "deep" && !env.ANTHROPIC_API_KEY) {
+    return corsJson(request, env, { ok: false, message: "Missing ANTHROPIC_API_KEY secret for deep mode." }, 500);
+  }
 
   if (!systemId) {
     return corsJson(request, env, { ok: false, message: "Field systemId is required." }, 400);
@@ -1397,10 +1439,16 @@ async function handleRefine(request, env) {
     generated_at: new Date().toISOString()
   };
 
+  const refineContext = buildRefineContextInput(command, cleanText(body.userDeltaContext, 2500), latestVersion.system_json);
+
   const normalized = await generateValidatedSystem(env, {
     mode: "refine",
+    generationMode,
     payload: refinePayload,
-    sourceInput: buildRefineSourceInput(command, latestVersion.system_json),
+    sourceInput: refineContext.sourceInput,
+    briefInput: refineContext.briefInput,
+    hiringContext: refineContext.hiringContext,
+    refineInstruction: refineContext.refineInstruction,
     priorSystem: latestVersion.system_json,
     options: {},
     userId: identity.user_id
@@ -1436,11 +1484,30 @@ async function handleRefine(request, env) {
       generations_used: usageUsed
     },
     billing_enforced: access.billing_enforced,
-    account
+    account,
+    pipeline: {
+      mode: generationMode,
+      status: buildPipelineStatusMessage(generationMode)
+    }
   });
 }
 
 async function generateValidatedSystem(env, input) {
+  const generationMode = resolveGenerationMode(input.generationMode);
+  logPipelineEvent("pipeline_mode", {
+    mode: generationMode,
+    operation: input.mode,
+    user_id: cleanText(input.userId, 120) || "anonymous"
+  });
+
+  if (generationMode === "deep") {
+    return generateValidatedSystemDeepMode(env, input);
+  }
+
+  return generateValidatedSystemFastMode(env, input);
+}
+
+async function generateValidatedSystemFastMode(env, input) {
   const maxAttempts = 3;
   let lastError = null;
   const failureReasons = [];
@@ -1472,17 +1539,46 @@ async function generateValidatedSystem(env, input) {
         mode: input.mode
       });
       if (!normalizedValidation.ok) {
+        logPipelineEvent("quality_gate_failed", {
+          mode: "fast",
+          operation: input.mode,
+          attempt,
+          quality_score: normalizedValidation.score,
+          failed_gate_reasons: normalizedValidation.issues || [normalizedValidation.message],
+          retry_count: attempt
+        });
         throw new Error(normalizedValidation.message);
       }
+
+      logPipelineEvent("quality_gate_passed", {
+        mode: "fast",
+        operation: input.mode,
+        attempt,
+        quality_score: normalizedValidation.score,
+        retry_count: attempt - 1
+      });
 
       return normalized;
     } catch (error) {
       lastError = error;
       failureReasons.push(cleanText(error && error.message ? error.message : error, 360) || "Unknown validation failure.");
+      logPipelineEvent("gpt_construction_failure", {
+        mode: "fast",
+        operation: input.mode,
+        attempt,
+        retry_count: attempt,
+        failure_reason: failureReasons[failureReasons.length - 1]
+      });
     }
   }
 
   try {
+    logPipelineEvent("fallback_activated", {
+      mode: "fast",
+      operation: input.mode,
+      retry_count: maxAttempts,
+      fallback_reason: cleanText(lastError && lastError.message ? lastError.message : lastError, 320)
+    });
     return buildSafeFallbackSystem(input, lastError, failureReasons);
   } catch (fallbackError) {
     const detail = String(lastError && lastError.message ? lastError.message : lastError || "Validation failed");
@@ -1490,6 +1586,280 @@ async function generateValidatedSystem(env, input) {
       fallbackError && fallbackError.message ? fallbackError.message : fallbackError || "Fallback failed"
     );
     throw new Error(`Model returned invalid or partial system JSON after retries. ${detail}. Fallback error: ${fallbackDetail}`);
+  }
+}
+
+async function generateValidatedSystemDeepMode(env, input) {
+  const maxGptAttempts = 3;
+  const maxClaudeAttempts = 2;
+  const failureReasons = [];
+  let lastError = null;
+  let diagnosticThesis = null;
+  let claudeCorrectiveInstruction = "";
+  let claudeAttempts = 0;
+  let claudeRerunUsed = false;
+
+  while (claudeAttempts < maxClaudeAttempts && !diagnosticThesis) {
+    claudeAttempts += 1;
+    try {
+      const rawDiagnostic = await callAnthropicForDiagnostic(env, {
+        mode: input.mode,
+        roleBrief: input.briefInput,
+        hiringContext: input.hiringContext,
+        refineInstruction: input.refineInstruction,
+        correctiveInstruction: claudeCorrectiveInstruction
+      });
+
+      const diagnosticValidation = validateClaudeDiagnosticOutput(rawDiagnostic, {
+        sourceInput: buildDeepValidationSourceInput(input, null)
+      });
+
+      if (!diagnosticValidation.ok) {
+        throw new Error(diagnosticValidation.message);
+      }
+
+      diagnosticThesis = diagnosticValidation.diagnostic;
+      logPipelineEvent("claude_diagnostic_success", {
+        mode: "deep",
+        operation: input.mode,
+        attempt: claudeAttempts,
+        quality_score: diagnosticValidation.score,
+        retry_count: claudeAttempts - 1
+      });
+    } catch (error) {
+      lastError = error;
+      const message = cleanText(error && error.message ? error.message : error, 360) || "Claude diagnostic failure.";
+      failureReasons.push(message);
+      logPipelineEvent("claude_diagnostic_failure", {
+        mode: "deep",
+        operation: input.mode,
+        attempt: claudeAttempts,
+        retry_count: claudeAttempts,
+        failure_reason: message
+      });
+      claudeCorrectiveInstruction = buildClaudeRetryInstruction(failureReasons);
+    }
+  }
+
+  if (!diagnosticThesis) {
+    logPipelineEvent("fallback_activated", {
+      mode: "deep",
+      operation: input.mode,
+      retry_count: maxClaudeAttempts,
+      fallback_reason: "Claude diagnostic pass failed before GPT construction."
+    });
+    return buildSafeFallbackSystem(input, lastError, failureReasons);
+  }
+
+  let gptCorrectiveInstruction = "";
+  for (let gptAttempt = 1; gptAttempt <= maxGptAttempts; gptAttempt += 1) {
+    try {
+      const generated = await callOpenAIForSystem(env, input.mode, input.payload, {
+        ...(input.options || {}),
+        forceFullContract: input.mode === "refine",
+        correctiveInstruction: gptCorrectiveInstruction,
+        deepMode: true,
+        briefInput: input.briefInput,
+        hiringContext: input.hiringContext,
+        refineInstruction: input.refineInstruction,
+        diagnosticThesis
+      });
+
+      const rawValidation = validateRawModelOutput(generated);
+      if (!rawValidation.ok) {
+        throw new Error(rawValidation.message);
+      }
+
+      const normalized = normalizeOutput(generated, {
+        mode: input.mode,
+        priorSystem: input.priorSystem,
+        sourceInput: buildDeepValidationSourceInput(input, diagnosticThesis),
+        userId: input.userId
+      });
+
+      const normalizedValidation = validateNormalizedSystem(normalized, {
+        sourceInput: buildDeepValidationSourceInput(input, diagnosticThesis),
+        mode: input.mode,
+        diagnosticThesis
+      });
+
+      if (normalizedValidation.ok) {
+        logPipelineEvent("gpt_construction_success", {
+          mode: "deep",
+          operation: input.mode,
+          attempt: gptAttempt,
+          quality_score: normalizedValidation.score,
+          retry_count: gptAttempt - 1
+        });
+        return normalized;
+      }
+
+      const retryRoute = routeDeepRetryAction(normalizedValidation, {
+        canRerunClaude: !claudeRerunUsed && claudeAttempts < maxClaudeAttempts
+      });
+
+      failureReasons.push(cleanText(normalizedValidation.message, 360) || "Deep mode quality failure.");
+      logPipelineEvent("quality_gate_failed", {
+        mode: "deep",
+        operation: input.mode,
+        attempt: gptAttempt,
+        quality_score: normalizedValidation.score,
+        failed_gate_reasons: normalizedValidation.issues || [normalizedValidation.message],
+        retry_count: gptAttempt,
+        retry_route: retryRoute.action
+      });
+
+      if (retryRoute.action === "rerun_claude") {
+        claudeRerunUsed = true;
+        claudeAttempts += 1;
+        const claudeRetryInstruction = buildClaudeRetryInstruction(failureReasons);
+        try {
+          const rerunDiagnostic = await callAnthropicForDiagnostic(env, {
+            mode: input.mode,
+            roleBrief: input.briefInput,
+            hiringContext: input.hiringContext,
+            refineInstruction: input.refineInstruction,
+            correctiveInstruction: claudeRetryInstruction
+          });
+          const rerunValidation = validateClaudeDiagnosticOutput(rerunDiagnostic, {
+            sourceInput: buildDeepValidationSourceInput(input, null)
+          });
+          if (!rerunValidation.ok) {
+            throw new Error(rerunValidation.message);
+          }
+          diagnosticThesis = rerunValidation.diagnostic;
+          logPipelineEvent("claude_diagnostic_success", {
+            mode: "deep",
+            operation: input.mode,
+            attempt: claudeAttempts,
+            quality_score: rerunValidation.score,
+            retry_count: claudeAttempts - 1
+          });
+          gptCorrectiveInstruction = buildDeepGptRetryInstruction({ action: "retry_gpt_alignment" }, normalizedValidation);
+          continue;
+        } catch (claudeError) {
+          lastError = claudeError;
+          const claudeMessage = cleanText(claudeError && claudeError.message ? claudeError.message : claudeError, 360)
+            || "Claude rerun failed.";
+          failureReasons.push(claudeMessage);
+          logPipelineEvent("claude_diagnostic_failure", {
+            mode: "deep",
+            operation: input.mode,
+            attempt: claudeAttempts,
+            retry_count: claudeAttempts,
+            failure_reason: claudeMessage
+          });
+          break;
+        }
+      }
+
+      gptCorrectiveInstruction = buildDeepGptRetryInstruction(retryRoute, normalizedValidation);
+      lastError = new Error(normalizedValidation.message);
+    } catch (error) {
+      lastError = error;
+      const message = cleanText(error && error.message ? error.message : error, 360) || "GPT construction failed.";
+      failureReasons.push(message);
+      gptCorrectiveInstruction = buildDeepGptRetryInstruction({ action: "retry_gpt_general" }, { message, issues: [] });
+      logPipelineEvent("gpt_construction_failure", {
+        mode: "deep",
+        operation: input.mode,
+        attempt: gptAttempt,
+        retry_count: gptAttempt,
+        failure_reason: message
+      });
+    }
+  }
+
+  logPipelineEvent("fallback_activated", {
+    mode: "deep",
+    operation: input.mode,
+    retry_count: maxGptAttempts,
+    fallback_reason: cleanText(lastError && lastError.message ? lastError.message : lastError, 320)
+      || "Deep mode retries exhausted."
+  });
+
+  return buildSafeFallbackSystem(input, lastError, failureReasons);
+}
+
+function routeDeepRetryAction(validationResult, options = {}) {
+  const failureTypes = Array.isArray(validationResult && validationResult.failure_types)
+    ? validationResult.failure_types
+    : classifyQualityFailureTypes(ensureStringArray(validationResult && validationResult.issues));
+  const typeSet = new Set(failureTypes);
+
+  if (options.canRerunClaude && typeSet.has("weak_diagnosis")) {
+    return { action: "rerun_claude" };
+  }
+
+  if (typeSet.has("missing_sections")) {
+    return { action: "retry_gpt_structure" };
+  }
+
+  if (typeSet.has("generic_output")) {
+    return { action: "retry_gpt_specificity" };
+  }
+
+  if (typeSet.has("contradiction")) {
+    return { action: "retry_gpt_alignment" };
+  }
+
+  if (typeSet.has("unsupported_claim")) {
+    return { action: "retry_gpt_evidence" };
+  }
+
+  return { action: "retry_gpt_general" };
+}
+
+function buildDeepGptRetryInstruction(route, validationResult) {
+  const action = route && route.action ? route.action : "retry_gpt_general";
+  const issueSummary = ensureStringArray(validationResult && validationResult.issues).slice(0, 4).join(" | ");
+
+  const routeInstructionMap = {
+    retry_gpt_structure:
+      "Repair structure only: fill missing sections, complete required contract keys, and expand thin sections with concrete recruiter actions.",
+    retry_gpt_specificity:
+      "Rebuild with higher specificity: anchor recommendations to brief terms, constraints, risks, and explicit context details.",
+    retry_gpt_alignment:
+      "Repair contradictions: align corrected_search_thesis, red_flags, and sprint actions with the diagnostic thesis.",
+    retry_gpt_evidence:
+      "Rewrite unsupported claims using evidence_or_assumption labels in wording and keep assumptions explicit.",
+    retry_gpt_general:
+      "Repair overall quality by improving structure, specificity, coherence, and actionability."
+  };
+
+  return [
+    "Deep mode retry instruction.",
+    routeInstructionMap[action] || routeInstructionMap.retry_gpt_general,
+    issueSummary ? `Failed gate details: ${issueSummary}` : "",
+    "Return the FULL JSON contract only."
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildClaudeRetryInstruction(failureReasons) {
+  const recentFailures = ensureStringArray(failureReasons).slice(-2).join(" | ");
+  return [
+    "Previous diagnostic thesis failed quality validation.",
+    recentFailures ? `Failure details: ${recentFailures}` : "",
+    "Improve evidence extraction, hidden-risk clarity, and corrected_search_thesis specificity.",
+    "Return strict JSON only with required keys."
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function logPipelineEvent(eventName, details = {}) {
+  const payload = {
+    at: new Date().toISOString(),
+    event: cleanText(eventName, 80),
+    ...details
+  };
+
+  try {
+    console.log(JSON.stringify(payload));
+  } catch {
+    console.log(`[o2o:${cleanText(eventName, 40)}]`);
   }
 }
 
@@ -1947,6 +2317,65 @@ function safeJsonClone(value) {
   }
 }
 
+function buildOpenAISystemPrompt(options = {}) {
+  if (!options.deepMode) {
+    return SYSTEM_PROMPT;
+  }
+
+  return [
+    SYSTEM_PROMPT,
+    "",
+    "Deep Diagnosis Mode instruction:",
+    "- You are in system-construction stage after diagnostic reasoning.",
+    "- Treat diagnostic_thesis as mandatory grounding context.",
+    "- Keep corrected_search_thesis, risks, red_flags, and sprint actions aligned with diagnostic_thesis.",
+    "- If evidence is weak, label assumptions explicitly and avoid unsupported certainty."
+  ].join("\n");
+}
+
+async function callAnthropicForDiagnostic(env, input) {
+  const model = cleanText(env.ANTHROPIC_MODEL, 120) || "claude-3-5-sonnet-latest";
+
+  const diagnosticPayload = {
+    mode: cleanText(input.mode, 30) || "build",
+    role_brief: cleanText(input.roleBrief, 12000),
+    hiring_context: cleanText(input.hiringContext, 6000),
+    refine_instruction: cleanText(input.refineInstruction, 1400),
+    corrective_instruction: cleanText(input.correctiveInstruction, 900),
+    required_output_keys: CLAUDE_DIAGNOSTIC_REQUIRED_KEYS
+  };
+
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": env.ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01"
+    },
+    body: JSON.stringify({
+      model,
+      temperature: 0.1,
+      max_tokens: 1600,
+      system: CLAUDE_DIAGNOSTIC_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: JSON.stringify(diagnosticPayload)
+        }
+      ]
+    })
+  });
+
+  if (!response.ok) {
+    const detail = await response.text();
+    throw new Error(`Anthropic error ${response.status}: ${detail.slice(0, 1200)}`);
+  }
+
+  const data = await response.json();
+  const content = extractAnthropicContent(data);
+  return parseModelJsonObject(content, "Anthropic diagnostic output was not valid JSON.");
+}
+
 async function callOpenAIForSystem(env, mode, payload, options = {}) {
   const model = env.OPENAI_MODEL || "gpt-4.1-mini";
 
@@ -1965,6 +2394,20 @@ async function callOpenAIForSystem(env, mode, payload, options = {}) {
     }
   };
 
+  if (options.deepMode) {
+    userTextPayload.deep_diagnosis = {
+      enabled: true,
+      role_brief: cleanText(options.briefInput, 12000),
+      hiring_context: cleanText(options.hiringContext, 6000),
+      refine_instruction: cleanText(options.refineInstruction, 1400),
+      diagnostic_thesis: options.diagnosticThesis && typeof options.diagnosticThesis === "object"
+        ? options.diagnosticThesis
+        : null,
+      construction_rule:
+        "Build the full recruiter-ready operating system from diagnostic_thesis and align every key recruitment section to it."
+    };
+  }
+
   const userContent = [{ type: "text", text: JSON.stringify(userTextPayload) }];
 
   if (mode === "build" && options.imageContext && options.imageContext.data_url) {
@@ -1977,7 +2420,7 @@ async function callOpenAIForSystem(env, mode, payload, options = {}) {
   }
 
   const messages = [
-    { role: "system", content: SYSTEM_PROMPT },
+    { role: "system", content: buildOpenAISystemPrompt(options) },
     {
       role: "user",
       content: userContent
@@ -2008,15 +2451,7 @@ async function callOpenAIForSystem(env, mode, payload, options = {}) {
 
   const data = await response.json();
   const content = extractAssistantContent(data);
-
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch {
-    throw new Error("Model output was not valid JSON.");
-  }
-
-  return parsed;
+  return parseModelJsonObject(content, "Model output was not valid JSON.");
 }
 
 function extractAssistantContent(data) {
@@ -2043,6 +2478,57 @@ function extractAssistantContent(data) {
   }
 
   return content;
+}
+
+function extractAnthropicContent(data) {
+  const content = data && Array.isArray(data.content) ? data.content : [];
+  const text = content
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return "";
+      }
+      if (item.type === "text") {
+        return String(item.text || "");
+      }
+      return "";
+    })
+    .join("\n")
+    .trim();
+
+  if (!text) {
+    throw new Error("Anthropic returned an empty diagnostic response.");
+  }
+
+  return text;
+}
+
+function parseModelJsonObject(content, invalidMessage) {
+  const raw = String(content || "").trim();
+  if (!raw) {
+    throw new Error(invalidMessage || "Model output was empty.");
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    const unfenced = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    try {
+      return JSON.parse(unfenced);
+    } catch {
+      const start = unfenced.indexOf("{");
+      const end = unfenced.lastIndexOf("}");
+      if (start >= 0 && end > start) {
+        const candidate = unfenced.slice(start, end + 1);
+        try {
+          return JSON.parse(candidate);
+        } catch {
+          // Fall through to explicit error.
+        }
+      }
+    }
+  }
+
+  throw new Error(invalidMessage || "Model output was not valid JSON.");
 }
 
 function normalizeOutput(raw, context) {
@@ -2285,15 +2771,36 @@ function validateRawModelOutput(raw) {
 function validateNormalizedSystem(system, options = {}) {
   const rawValidation = validateRawModelOutput(system);
   if (!rawValidation.ok) {
-    return rawValidation;
+    const issues = [rawValidation.message];
+    return {
+      ok: false,
+      message: rawValidation.message,
+      issues,
+      failure_types: classifyQualityFailureTypes(issues),
+      score: qualityScoreFromIssueCount(issues.length)
+    };
   }
 
   if (!system.system_card || typeof system.system_card !== "object") {
-    return { ok: false, message: "Normalized system is missing system_card." };
+    const issues = ["Normalized system is missing system_card."];
+    return {
+      ok: false,
+      message: issues[0],
+      issues,
+      failure_types: classifyQualityFailureTypes(issues),
+      score: qualityScoreFromIssueCount(issues.length)
+    };
   }
 
   if (!system.recruitment_operating_system || typeof system.recruitment_operating_system !== "object") {
-    return { ok: false, message: "Normalized system is missing recruitment_operating_system." };
+    const issues = ["Normalized system is missing recruitment_operating_system."];
+    return {
+      ok: false,
+      message: issues[0],
+      issues,
+      failure_types: classifyQualityFailureTypes(issues),
+      score: qualityScoreFromIssueCount(issues.length)
+    };
   }
 
   const recruitment = system.recruitment_operating_system;
@@ -2317,9 +2824,13 @@ function validateNormalizedSystem(system, options = {}) {
 
   const missingRecruitment = requiredRecruitmentKeys.filter((key) => !(key in recruitment));
   if (missingRecruitment.length) {
+    const issues = [`Recruitment contract missing keys: ${missingRecruitment.join(", ")}.`];
     return {
       ok: false,
-      message: `Recruitment contract missing keys: ${missingRecruitment.join(", ")}.`
+      message: issues[0],
+      issues,
+      failure_types: ["missing_sections"],
+      score: qualityScoreFromIssueCount(issues.length)
     };
   }
 
@@ -2376,15 +2887,34 @@ function validateNormalizedSystem(system, options = {}) {
   qualityIssues.push(...detectGenericOutputIssues(system, sourceInput));
   qualityIssues.push(...detectContradictionIssues(system));
   qualityIssues.push(...detectActionabilityIssues(system));
+  qualityIssues.push(...detectUnsupportedClaimIssues(system));
 
-  if (qualityIssues.length) {
+  const diagnosticThesis = options && options.diagnosticThesis && typeof options.diagnosticThesis === "object"
+    ? options.diagnosticThesis
+    : null;
+  if (diagnosticThesis) {
+    qualityIssues.push(...detectDiagnosticAlignmentIssues(system, diagnosticThesis));
+  }
+
+  const dedupedIssues = dedupeStrings(qualityIssues);
+  const qualityScore = qualityScoreFromIssueCount(dedupedIssues.length);
+
+  if (dedupedIssues.length) {
     return {
       ok: false,
-      message: `Recruitment quality gate failed: ${qualityIssues.join("; ")}.`
+      message: `Recruitment quality gate failed: ${dedupedIssues.join("; ")}.`,
+      issues: dedupedIssues,
+      failure_types: classifyQualityFailureTypes(dedupedIssues),
+      score: qualityScore
     };
   }
 
-  return { ok: true };
+  return {
+    ok: true,
+    issues: [],
+    failure_types: [],
+    score: 100
+  };
 }
 
 function detectGenericOutputIssues(system, sourceInput) {
@@ -2545,6 +3075,237 @@ function detectActionabilityIssues(system) {
   return issues;
 }
 
+function detectUnsupportedClaimIssues(system) {
+  const issues = [];
+  const recruitment =
+    system && system.recruitment_operating_system && typeof system.recruitment_operating_system === "object"
+      ? system.recruitment_operating_system
+      : {};
+
+  const narrative = [
+    cleanText(system && system.executive_summary, 1200),
+    cleanText(recruitment.job_ad_diagnosis, 1200),
+    cleanText(recruitment.hidden_success_profile, 1200),
+    cleanText(recruitment.client_briefing_notes, 1200)
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const strongClaims =
+    narrative.match(/\b(guarantee(?:d)?|certainly|definitely|no risk|always|proven|will absolutely)\b/gi) || [];
+  if (!strongClaims.length) {
+    return issues;
+  }
+
+  const assumptionPool = [
+    ...ensureStringArray(system && system.system_card && system.system_card.key_assumptions),
+    ...ensureStringArray(system && system.grounding_notes)
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (!/assum|evidence|constraint|uncertain/.test(assumptionPool)) {
+    issues.push("unsupported claim language detected without evidence/assumption labels");
+  }
+
+  return issues;
+}
+
+function detectDiagnosticAlignmentIssues(system, diagnosticThesis) {
+  const issues = [];
+  const recruitment =
+    system && system.recruitment_operating_system && typeof system.recruitment_operating_system === "object"
+      ? system.recruitment_operating_system
+      : {};
+  const blindSpots =
+    recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+      ? recruitment.blind_spot_diagnosis
+      : {};
+  const diagnostic = normalizeClaudeDiagnosticOutput(diagnosticThesis);
+
+  if (cleanText(diagnostic.corrected_search_thesis, 1200).length < 100) {
+    issues.push("diagnostic thesis quality is weak");
+    return issues;
+  }
+
+  const gptThesis = cleanText(blindSpots.corrected_search_thesis, 1200);
+  const claudeThesis = cleanText(diagnostic.corrected_search_thesis, 1200);
+  if (gptThesis && claudeThesis && jaccardSimilarity(gptThesis, claudeThesis) < 0.08) {
+    issues.push("contradiction with diagnostic thesis on corrected_search_thesis");
+  }
+
+  const systemRiskCorpus = [
+    ...ensureStringArray(recruitment.red_flags),
+    ...ensureStringArray(system && system.risks_and_controls && Array.isArray(system.risks_and_controls)
+      ? system.risks_and_controls.map((entry) => (entry && typeof entry === "object" ? entry.risk : ""))
+      : [])
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const failureModeAnchors = extractAnchorTerms(diagnostic.candidate_failure_modes.join(" "), 6);
+  if (failureModeAnchors.length >= 2 && !failureModeAnchors.some((token) => systemRiskCorpus.includes(token))) {
+    issues.push("contradiction with diagnostic thesis on candidate failure modes");
+  }
+
+  const assumptionAnchors = extractAnchorTerms(diagnostic.assumptions_to_label.join(" "), 6);
+  const keyAssumptionText = ensureStringArray(system && system.system_card && system.system_card.key_assumptions)
+    .join(" ")
+    .toLowerCase();
+  if (assumptionAnchors.length >= 2 && !assumptionAnchors.some((token) => keyAssumptionText.includes(token))) {
+    issues.push("unsupported claim risk: assumptions from diagnostic thesis were not labeled");
+  }
+
+  return issues;
+}
+
+function normalizeClaudeDiagnosticOutput(raw) {
+  const safe = raw && typeof raw === "object" ? raw : {};
+  return {
+    evidence_from_brief: ensureStringArray(safe.evidence_from_brief).slice(0, 10),
+    likely_hidden_risks: ensureStringArray(safe.likely_hidden_risks).slice(0, 10),
+    assumptions_to_label: ensureStringArray(safe.assumptions_to_label).slice(0, 10),
+    missing_information: ensureStringArray(safe.missing_information).slice(0, 10),
+    corrected_search_thesis: cleanText(safe.corrected_search_thesis, 1400),
+    candidate_failure_modes: ensureStringArray(safe.candidate_failure_modes).slice(0, 10),
+    recruiter_verification_questions: ensureStringArray(safe.recruiter_verification_questions).slice(0, 10),
+    confidence_notes: cleanText(safe.confidence_notes, 1200)
+  };
+}
+
+function validateClaudeDiagnosticOutput(rawDiagnostic, options = {}) {
+  if (!rawDiagnostic || typeof rawDiagnostic !== "object" || Array.isArray(rawDiagnostic)) {
+    const issues = ["Claude diagnostic output is not a JSON object."];
+    return {
+      ok: false,
+      message: issues[0],
+      issues,
+      failure_types: ["weak_diagnosis"],
+      score: qualityScoreFromIssueCount(issues.length)
+    };
+  }
+
+  const missing = CLAUDE_DIAGNOSTIC_REQUIRED_KEYS.filter((key) => !(key in rawDiagnostic));
+  if (missing.length) {
+    const issues = [`Claude diagnostic output missing keys: ${missing.join(", ")}.`];
+    return {
+      ok: false,
+      message: issues[0],
+      issues,
+      failure_types: ["weak_diagnosis", "missing_sections"],
+      score: qualityScoreFromIssueCount(issues.length)
+    };
+  }
+
+  const diagnostic = normalizeClaudeDiagnosticOutput(rawDiagnostic);
+  const issues = [];
+
+  if (diagnostic.evidence_from_brief.length < 2) {
+    issues.push("diagnostic evidence_from_brief is too thin");
+  }
+  if (diagnostic.likely_hidden_risks.length < 2) {
+    issues.push("diagnostic likely_hidden_risks is too thin");
+  }
+  if (diagnostic.candidate_failure_modes.length < 2) {
+    issues.push("diagnostic candidate_failure_modes is too thin");
+  }
+  if (diagnostic.recruiter_verification_questions.length < 2) {
+    issues.push("diagnostic recruiter_verification_questions is too thin");
+  }
+  if (cleanText(diagnostic.corrected_search_thesis, 1400).length < 120) {
+    issues.push("diagnostic corrected_search_thesis is too thin");
+  }
+
+  const diagnosticText = [
+    ...diagnostic.evidence_from_brief,
+    ...diagnostic.likely_hidden_risks,
+    ...diagnostic.assumptions_to_label,
+    ...diagnostic.missing_information,
+    diagnostic.corrected_search_thesis,
+    ...diagnostic.candidate_failure_modes,
+    ...diagnostic.recruiter_verification_questions,
+    diagnostic.confidence_notes
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (/\b(best practices?|across industries|placeholder|tbd|to be determined)\b/i.test(diagnosticText)) {
+    issues.push("diagnostic thesis quality is weak (generic language)");
+  }
+
+  const sourceInput = cleanText(options.sourceInput, 9000);
+  if (sourceInput) {
+    const sourceAnchors = extractAnchorTerms(sourceInput, 5);
+    const lowerDiagnostic = diagnosticText.toLowerCase();
+    if (sourceAnchors.length >= 2 && !sourceAnchors.some((term) => lowerDiagnostic.includes(term))) {
+      issues.push("diagnostic thesis quality is weak (low source anchor coverage)");
+    }
+  }
+
+  const dedupedIssues = dedupeStrings(issues);
+  const score = dedupedIssues.length ? qualityScoreFromIssueCount(dedupedIssues.length) : 100;
+
+  if (dedupedIssues.length) {
+    return {
+      ok: false,
+      message: `Claude diagnostic quality gate failed: ${dedupedIssues.join("; ")}.`,
+      issues: dedupedIssues,
+      failure_types: ["weak_diagnosis"],
+      score,
+      diagnostic
+    };
+  }
+
+  return {
+    ok: true,
+    message: "",
+    issues: [],
+    failure_types: [],
+    score,
+    diagnostic
+  };
+}
+
+function classifyQualityFailureTypes(issues) {
+  const values = ensureStringArray(issues);
+  const types = new Set();
+
+  for (const issue of values) {
+    const text = issue.toLowerCase();
+
+    if (/diagnostic thesis quality is weak|diagnostic .*too thin|claude diagnostic/.test(text)) {
+      types.add("weak_diagnosis");
+    }
+
+    if (/generic|placeholder|source-term overlap|anchor|consulting filler|core narrative sections are empty/.test(text)) {
+      types.add("generic_output");
+    }
+
+    if (/missing|must contain|must include|partial|too thin|invalid version|not a json object/.test(text)) {
+      types.add("missing_sections");
+    }
+
+    if (/contradiction|diverge|conflicts|alignment|too similar|clarity level requires/.test(text)) {
+      types.add("contradiction");
+    }
+
+    if (/unsupported claim|assumption labels/.test(text)) {
+      types.add("unsupported_claim");
+    }
+  }
+
+  if (!types.size) {
+    types.add("unknown");
+  }
+
+  return [...types];
+}
+
+function qualityScoreFromIssueCount(issueCount) {
+  const count = Number.isFinite(Number(issueCount)) ? Number(issueCount) : 0;
+  return Math.max(0, 100 - count * 12);
+}
+
 function extractAnchorTerms(text, limit) {
   const stopwords = new Set([
     "about", "above", "after", "again", "against", "before", "being", "below", "between", "brief", "candidate",
@@ -2583,6 +3344,96 @@ function jaccardSimilarity(a, b) {
 
   const union = new Set([...aSet, ...bSet]).size;
   return union ? intersection / union : 0;
+}
+
+function resolveGenerationMode(value) {
+  const normalized = cleanText(value, 30).toLowerCase();
+  return GENERATION_MODES.includes(normalized) ? normalized : "fast";
+}
+
+function buildPipelineStatusMessage(mode) {
+  return mode === "deep"
+    ? "O2O Deep Diagnosis completed."
+    : "O2O generated this hiring plan using multi-pass diagnostic validation.";
+}
+
+function buildBuildContextInput(body, userInput) {
+  const briefInput = cleanText(userInput, 12000);
+  const hiringContext = [
+    cleanText(body && body.context, 3000),
+    cleanText(body && body.constraints, 3000),
+    cleanText(body && body.goal, 220),
+    cleanText(body && body.stage, 120)
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const sourceInput = [briefInput, hiringContext].filter(Boolean).join("\n");
+
+  return {
+    sourceInput: cleanText(sourceInput, 14000),
+    briefInput,
+    hiringContext
+  };
+}
+
+function buildRefineContextInput(command, userDeltaContext, priorSystem) {
+  const sourceInput = buildRefineSourceInput(command, priorSystem);
+  const prior = priorSystem && typeof priorSystem === "object" ? priorSystem : {};
+  const card = prior.system_card && typeof prior.system_card === "object" ? prior.system_card : {};
+  const recruitment =
+    prior.recruitment_operating_system && typeof prior.recruitment_operating_system === "object"
+      ? prior.recruitment_operating_system
+      : {};
+
+  const briefInput = [
+    cleanText(recruitment.job_ad_diagnosis, 1200),
+    cleanText(recruitment.hidden_success_profile, 1200),
+    cleanText(prior.executive_summary, 1200)
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const hiringContext = [
+    cleanText(recruitment.client_briefing_notes, 1200),
+    cleanText(card.recommended_next_step, 400),
+    cleanText(userDeltaContext, 2500)
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return {
+    sourceInput,
+    briefInput: briefInput || sourceInput,
+    hiringContext: hiringContext || sourceInput,
+    refineInstruction: cleanText(command, 700)
+  };
+}
+
+function buildDeepValidationSourceInput(input, diagnosticThesis) {
+  const diagnostic = diagnosticThesis ? normalizeClaudeDiagnosticOutput(diagnosticThesis) : null;
+  const diagnosticContext = diagnostic
+    ? [
+        diagnostic.corrected_search_thesis,
+        ...diagnostic.evidence_from_brief,
+        ...diagnostic.likely_hidden_risks,
+        ...diagnostic.assumptions_to_label,
+        ...diagnostic.candidate_failure_modes,
+        ...diagnostic.recruiter_verification_questions
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  return [
+    cleanText(input && input.sourceInput, 7000),
+    cleanText(input && input.briefInput, 5000),
+    cleanText(input && input.hiringContext, 5000),
+    cleanText(input && input.refineInstruction, 1400),
+    cleanText(diagnosticContext, 6000)
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function buildRefineSourceInput(command, priorSystem) {
@@ -4274,3 +5125,17 @@ function resolveOrigin(request, env) {
 
   return allowedRaw[0];
 }
+
+export const __testables = {
+  resolveGenerationMode,
+  buildPipelineStatusMessage,
+  buildBuildContextInput,
+  buildRefineContextInput,
+  buildDeepValidationSourceInput,
+  classifyQualityFailureTypes,
+  qualityScoreFromIssueCount,
+  routeDeepRetryAction,
+  normalizeClaudeDiagnosticOutput,
+  validateClaudeDiagnosticOutput,
+  detectDiagnosticAlignmentIssues
+};
