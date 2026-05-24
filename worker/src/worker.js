@@ -1445,14 +1445,22 @@ async function generateValidatedSystem(env, input) {
   let lastError = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const priorIssue =
+      attempt === 1
+        ? ""
+        : cleanText(lastError && lastError.message ? lastError.message : "", 320);
+
     const correctiveInstruction =
       attempt === 1
         ? ""
         : [
             "Previous attempt returned invalid or partial JSON.",
+            priorIssue ? `Validation issue: ${priorIssue}` : "",
             "Return the FULL deterministic contract object with all required fields.",
             "Do not return a diff, patch, or only changed fields."
-          ].join(" ");
+          ]
+            .filter(Boolean)
+            .join(" ");
 
     try {
       const generated = await callOpenAIForSystem(env, input.mode, input.payload, {
@@ -1861,6 +1869,62 @@ function validateNormalizedSystem(system) {
     return {
       ok: false,
       message: `Recruitment contract missing keys: ${missingRecruitment.join(", ")}.`
+    };
+  }
+
+  const qualityIssues = [];
+  const blindSpots = recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+    ? recruitment.blind_spot_diagnosis
+    : {};
+  const interview = recruitment.interview_questions && typeof recruitment.interview_questions === "object"
+    ? recruitment.interview_questions
+    : {};
+  const sprintPlan = recruitment.search_sprint_21_day_plan && typeof recruitment.search_sprint_21_day_plan === "object"
+    ? recruitment.search_sprint_21_day_plan
+    : {};
+
+  if (cleanText(recruitment.job_ad_diagnosis, 1200).length < 120) {
+    qualityIssues.push("job_ad_diagnosis is too thin");
+  }
+
+  if (cleanText(blindSpots.corrected_search_thesis, 1200).length < 140) {
+    qualityIssues.push("blind_spot_diagnosis.corrected_search_thesis is too thin");
+  }
+
+  if (cleanText(recruitment.outreach_message, 1800).length < 120) {
+    qualityIssues.push("outreach_message is too thin");
+  }
+
+  if (ensureStringArray(recruitment.boolean_search_strings).length < 2) {
+    qualityIssues.push("boolean_search_strings must contain at least 2 strings");
+  }
+
+  if (!Array.isArray(recruitment.screening_rubric) || recruitment.screening_rubric.length < 3) {
+    qualityIssues.push("screening_rubric must contain at least 3 entries");
+  }
+
+  const interviewTotal =
+    ensureStringArray(interview.technical).length +
+    ensureStringArray(interview.behavioral).length +
+    ensureStringArray(interview.execution).length +
+    ensureStringArray(interview.stakeholder).length;
+
+  if (interviewTotal < 6) {
+    qualityIssues.push("interview_questions must contain at least 6 total prompts");
+  }
+
+  const week1 = ensureStringArray(sprintPlan.week1).length;
+  const week2 = ensureStringArray(sprintPlan.week2).length;
+  const week3 = ensureStringArray(sprintPlan.week3).length;
+
+  if (week1 < 2 || week2 < 2 || week3 < 2) {
+    qualityIssues.push("search_sprint_21_day_plan must include at least 2 actions per week");
+  }
+
+  if (qualityIssues.length) {
+    return {
+      ok: false,
+      message: `Recruitment quality gate failed: ${qualityIssues.join("; ")}.`
     };
   }
 

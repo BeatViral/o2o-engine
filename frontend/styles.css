@@ -423,6 +423,72 @@ main,
   padding: 3.4rem 0 2rem;
 }
 
+.hero-badge-row {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.25rem;
+}
+
+.secret-weapon-badge {
+  position: relative;
+  width: clamp(180px, 18vw, 244px);
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  padding: 0.95rem;
+  display: grid;
+  place-content: center;
+  text-align: center;
+  gap: 0.22rem;
+  background:
+    radial-gradient(circle at 32% 22%, rgba(255, 246, 198, 0.95), rgba(255, 246, 198, 0.2) 36%, rgba(255, 246, 198, 0) 58%),
+    linear-gradient(152deg, #fff5cb 0%, #ffd76a 44%, #ff9a32 100%);
+  border: 3px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    0 18px 38px rgba(171, 76, 19, 0.28),
+    0 0 0 3px rgba(255, 173, 68, 0.34),
+    0 0 38px rgba(255, 184, 70, 0.5);
+  animation: secretBadgePulse 2.8s ease-in-out infinite;
+}
+
+.secret-weapon-badge::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, #ff8c2f, #ffc95f, #ff6b2e, #ff8c2f);
+  z-index: -1;
+  filter: blur(0.3px);
+  animation: secretBadgeSpin 7.5s linear infinite;
+}
+
+.secret-weapon-top {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64320b;
+  font-weight: 700;
+}
+
+.secret-weapon-main {
+  font-family: "Bricolage Grotesque", sans-serif;
+  font-size: clamp(1.32rem, 1.95vw, 1.7rem);
+  line-height: 0.95;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  color: #2e1700;
+  font-weight: 800;
+}
+
+.secret-weapon-bottom {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #6f390f;
+  font-weight: 700;
+}
+
 .eyebrow {
   margin: 0;
   font-family: "IBM Plex Mono", monospace;
@@ -461,6 +527,35 @@ main,
   color: #20424a;
   font-size: 1.04rem;
   font-weight: 700;
+}
+
+.hero-command {
+  margin: 0.62rem 0 0;
+  max-width: 780px;
+  color: #5d290b;
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.hero-signal-list {
+  margin: 0.62rem 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.48rem;
+  max-width: 900px;
+}
+
+.hero-signal-list li {
+  border: 1px solid rgba(255, 141, 52, 0.42);
+  border-radius: 999px;
+  padding: 0.44rem 0.62rem;
+  text-align: center;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #5d290b;
+  background: linear-gradient(140deg, rgba(255, 251, 238, 0.93), rgba(255, 230, 180, 0.88));
 }
 
 .hero-heart {
@@ -1674,6 +1769,33 @@ textarea {
   }
 }
 
+@keyframes secretBadgeSpin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes secretBadgePulse {
+  0%,
+  100% {
+    box-shadow:
+      0 18px 38px rgba(171, 76, 19, 0.28),
+      0 0 0 3px rgba(255, 173, 68, 0.34),
+      0 0 38px rgba(255, 184, 70, 0.5);
+  }
+
+  50% {
+    box-shadow:
+      0 22px 44px rgba(171, 76, 19, 0.34),
+      0 0 0 4px rgba(255, 194, 95, 0.44),
+      0 0 54px rgba(255, 193, 92, 0.74);
+  }
+}
+
 @media (max-width: 1000px) {
   .studio-grid {
     grid-template-columns: 1fr;
@@ -1734,6 +1856,11 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .hero-signal-list {
+    grid-template-columns: 1fr;
+    max-width: 620px;
+  }
+
   .hero-heart {
     padding: 0.9rem;
   }
@@ -1768,6 +1895,23 @@ textarea {
 
   .hero {
     padding-top: 2.2rem;
+  }
+
+  .hero-badge-row {
+    justify-content: flex-start;
+  }
+
+  .secret-weapon-badge {
+    width: clamp(156px, 42vw, 192px);
+  }
+
+  .hero-command {
+    font-size: 0.92rem;
+  }
+
+  .hero-signal-list {
+    grid-template-columns: 1fr;
+    max-width: 100%;
   }
 
   .refine-row {
