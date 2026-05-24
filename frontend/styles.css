@@ -2139,8 +2139,11 @@ textarea {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 0.72rem;
+  line-height: 1.35;
   color: #0c5a61;
   font-weight: 700;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .risk-metric-grid {
@@ -3260,6 +3263,9 @@ main {
   color: #0d5960;
   font-size: 0.73rem;
   letter-spacing: 0.1em;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .risk-scan-panel {
@@ -3614,8 +3620,10 @@ main {
 .next-head h3 {
   margin: 0;
   font-size: clamp(1.15rem, 1.8vw, 1.34rem);
+  line-height: 1.24;
   color: #17333c;
   letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
 }
 
 .glance-grid,
@@ -3657,9 +3665,12 @@ main {
 .next-label {
   margin: 0;
   font-size: 0.72rem;
+  line-height: 1.4;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #3f5d67;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .glance-value,
