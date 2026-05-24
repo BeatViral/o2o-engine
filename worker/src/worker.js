@@ -1400,7 +1400,7 @@ async function handleRefine(request, env) {
   const normalized = await generateValidatedSystem(env, {
     mode: "refine",
     payload: refinePayload,
-    sourceInput: command,
+    sourceInput: buildRefineSourceInput(command, latestVersion.system_json),
     priorSystem: latestVersion.system_json,
     options: {},
     userId: identity.user_id
@@ -1441,26 +1441,12 @@ async function handleRefine(request, env) {
 }
 
 async function generateValidatedSystem(env, input) {
-  const maxAttempts = 2;
+  const maxAttempts = 3;
   let lastError = null;
+  const failureReasons = [];
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    const priorIssue =
-      attempt === 1
-        ? ""
-        : cleanText(lastError && lastError.message ? lastError.message : "", 320);
-
-    const correctiveInstruction =
-      attempt === 1
-        ? ""
-        : [
-            "Previous attempt returned invalid or partial JSON.",
-            priorIssue ? `Validation issue: ${priorIssue}` : "",
-            "Return the FULL deterministic contract object with all required fields.",
-            "Do not return a diff, patch, or only changed fields."
-          ]
-            .filter(Boolean)
-            .join(" ");
+    const correctiveInstruction = buildQualityRetryInstruction(failureReasons, input.mode);
 
     try {
       const generated = await callOpenAIForSystem(env, input.mode, input.payload, {
@@ -1481,7 +1467,10 @@ async function generateValidatedSystem(env, input) {
         userId: input.userId
       });
 
-      const normalizedValidation = validateNormalizedSystem(normalized);
+      const normalizedValidation = validateNormalizedSystem(normalized, {
+        sourceInput: input.sourceInput,
+        mode: input.mode
+      });
       if (!normalizedValidation.ok) {
         throw new Error(normalizedValidation.message);
       }
@@ -1489,11 +1478,473 @@ async function generateValidatedSystem(env, input) {
       return normalized;
     } catch (error) {
       lastError = error;
+      failureReasons.push(cleanText(error && error.message ? error.message : error, 360) || "Unknown validation failure.");
     }
   }
 
-  const detail = String(lastError && lastError.message ? lastError.message : lastError || "Validation failed");
-  throw new Error(`Model returned invalid or partial system JSON after retry. ${detail}`);
+  try {
+    return buildSafeFallbackSystem(input, lastError, failureReasons);
+  } catch (fallbackError) {
+    const detail = String(lastError && lastError.message ? lastError.message : lastError || "Validation failed");
+    const fallbackDetail = String(
+      fallbackError && fallbackError.message ? fallbackError.message : fallbackError || "Fallback failed"
+    );
+    throw new Error(`Model returned invalid or partial system JSON after retries. ${detail}. Fallback error: ${fallbackDetail}`);
+  }
+}
+
+function buildQualityRetryInstruction(failureReasons, mode) {
+  if (!Array.isArray(failureReasons) || !failureReasons.length) {
+    return "";
+  }
+
+  const recentFailures = failureReasons.slice(-2).join(" | ");
+  return [
+    "Previous attempt failed the O2O Quality Gate.",
+    recentFailures ? `Failure details: ${recentFailures}` : "",
+    "Fix completeness, specificity, coherence, and actionability gaps.",
+    "Eliminate generic filler and tie recommendations directly to input context terms.",
+    "Resolve contradictions across stated_need, likely_real_need, corrected_search_thesis, and sprint actions.",
+    "Return concrete next actions and weekly steps with execution detail.",
+    "Return the FULL deterministic contract object with all required fields.",
+    mode === "refine" ? "For refine mode, return the full updated contract object, never partial updates." : "",
+    "Do not return a diff, patch, commentary, or markdown."
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+function buildSafeFallbackSystem(input, lastError, failureReasons) {
+  const failureSummary = cleanText(
+    [
+      cleanText(lastError && lastError.message ? lastError.message : lastError, 220),
+      Array.isArray(failureReasons) ? failureReasons.slice(-2).join(" | ") : ""
+    ]
+      .filter(Boolean)
+      .join(" | "),
+    420
+  ) || "Quality gate fallback activated.";
+
+  if (input.mode === "refine" && input.priorSystem && typeof input.priorSystem === "object") {
+    const clonedPrior = safeJsonClone(input.priorSystem);
+    if (clonedPrior) {
+      const normalizedFromPrior = normalizeOutput(clonedPrior, {
+        mode: input.mode,
+        priorSystem: input.priorSystem,
+        sourceInput: input.sourceInput,
+        userId: input.userId
+      });
+
+      normalizedFromPrior.system_card.confidence_level = "LOW";
+      normalizedFromPrior.system_card.recommended_next_step =
+        "Quality gate fallback used. Review this version, then rerun refine with one explicit change objective.";
+      normalizedFromPrior.clarification.needs_clarification = true;
+      normalizedFromPrior.clarification.assumption_based_draft_used = true;
+      normalizedFromPrior.clarification.questions = ensureStringArray([
+        ...ensureStringArray(normalizedFromPrior.clarification.questions),
+        "Which one section should be refined first?",
+        "What measurable improvement do you expect from this refine request?"
+      ]).slice(0, 5);
+
+      normalizedFromPrior.grounding_notes = dedupeStrings([
+        `Fallback mode activated after repeated quality-gate failures: ${failureSummary}`,
+        ...ensureStringArray(normalizedFromPrior.grounding_notes)
+      ]).slice(0, 8);
+
+      normalizedFromPrior.next_actions = dedupeStrings([
+        "Rerun refine with one narrow command tied to one section.",
+        "Review corrected search thesis with hiring manager before further edits.",
+        ...ensureStringArray(normalizedFromPrior.next_actions)
+      ]).slice(0, 8);
+
+      const priorValidation = validateNormalizedSystem(normalizedFromPrior, {
+        sourceInput: input.sourceInput,
+        mode: input.mode
+      });
+      if (priorValidation.ok) {
+        return normalizedFromPrior;
+      }
+    }
+  }
+
+  const rawFallback = createSafeContractFallback(input.sourceInput, failureSummary);
+  const normalizedFallback = normalizeOutput(rawFallback, {
+    mode: input.mode,
+    priorSystem: input.priorSystem,
+    sourceInput: input.sourceInput,
+    userId: input.userId
+  });
+
+  normalizedFallback.system_card.confidence_level = "LOW";
+  normalizedFallback.clarification.needs_clarification = true;
+  normalizedFallback.clarification.assumption_based_draft_used = true;
+  normalizedFallback.clarification.questions = ensureStringArray([
+    ...ensureStringArray(normalizedFallback.clarification.questions),
+    "What are the top 3 outcomes expected in the first 90 days?",
+    "Which role constraints are fixed versus flexible?"
+  ]).slice(0, 5);
+
+  normalizedFallback.grounding_notes = dedupeStrings([
+    `Fallback mode activated after repeated quality-gate failures: ${failureSummary}`,
+    ...ensureStringArray(normalizedFallback.grounding_notes)
+  ]).slice(0, 8);
+
+  normalizedFallback.next_actions = dedupeStrings([
+    "Validate corrected search thesis with hiring manager before sourcing starts.",
+    "Run a 7-day sourcing pilot and score shortlist quality against the rubric.",
+    "Collect reviewer feedback and rerun build with clarified constraints.",
+    ...ensureStringArray(normalizedFallback.next_actions)
+  ]).slice(0, 8);
+
+  const fallbackValidation = validateNormalizedSystem(normalizedFallback, {
+    sourceInput: input.sourceInput,
+    mode: input.mode
+  });
+  if (!fallbackValidation.ok) {
+    throw new Error(`Fallback system failed quality gate: ${fallbackValidation.message}`);
+  }
+
+  return normalizedFallback;
+}
+
+function createSafeContractFallback(sourceInput, failureDetail) {
+  const source = cleanText(sourceInput, 700) || "Input brief context was limited.";
+  const detail = cleanText(failureDetail, 320) || "No model failure detail available.";
+  const recruitment = createRecruitmentFallback(source);
+
+  return {
+    system_card: {
+      opportunity_type: "Strategy / Discovery",
+      clarity_level: "Needs Discovery",
+      output_pathway: "Workflow System",
+      confidence_level: "LOW",
+      key_assumptions: [
+        "Fallback mode was activated to protect output reliability.",
+        "Role success criteria require explicit hiring-manager calibration."
+      ],
+      missing_information: [
+        "First-90-day success outcomes",
+        "Non-negotiable competencies",
+        "Compensation and level constraints"
+      ],
+      recommended_next_step:
+        "Run a calibration call with the hiring manager, confirm scorecard weights, then launch a 7-day pilot search sprint."
+    },
+    diagnosis: {
+      opportunity_type_rationale:
+        "Recruitment brief requires structured diagnosis first to prevent wrong-profile targeting.",
+      clarity_rationale:
+        "Input contains hiring intent but lacks explicit success criteria and calibrated screening boundaries.",
+      pathway_rationale:
+        "Workflow System selected to provide immediate recruiter execution structure with quality gates.",
+      missing_information_detail: [
+        "Role outcomes expected by day 30, 60, and 90",
+        "Interview owner and decision SLA",
+        "Required evidence standard before shortlist progression"
+      ],
+      confidence_rationale: `Confidence remains LOW because fallback mode was required after repeated quality failures: ${detail}`
+    },
+    clarification: {
+      needs_clarification: true,
+      questions: [
+        "Which three outcomes define success in the first 90 days?",
+        "Which candidate capabilities are mandatory versus trainable?",
+        "What constraints should the search avoid (level, budget, location)?"
+      ],
+      assumption_based_draft_used: true
+    },
+    executive_summary:
+      `Safe fallback recruiter workflow generated to preserve reliability. Context anchor: ${source}`,
+    recruitment_operating_system: recruitment,
+    opportunity_map: {
+      value: [
+        "Clarifies true role need before sourcing spend",
+        "Improves shortlist quality signal",
+        "Creates repeatable recruiter operating cadence"
+      ],
+      risks: [
+        "Uncalibrated success criteria may distort screening",
+        "Stakeholder inconsistency may delay decisions"
+      ],
+      bottlenecks: [
+        "Role brief ambiguity",
+        "Interview scoring inconsistency"
+      ],
+      leverage_points: [
+        "Corrected search thesis",
+        "Structured rubric enforcement",
+        "Weekly quality checkpoint rhythm"
+      ]
+    },
+    workflow_blueprint: [
+      {
+        step: "Calibrate role success profile",
+        ai_responsibilities: ["Synthesize brief risks", "Draft corrected search thesis"],
+        human_responsibilities: ["Approve role outcomes", "Confirm constraints"],
+        tools: ["O2O diagnosis", "Intake notes"],
+        quality_checks: ["Success outcomes documented", "Non-negotiables agreed"]
+      },
+      {
+        step: "Run structured sourcing sprint",
+        ai_responsibilities: ["Generate boolean strings", "Draft outreach sequence"],
+        human_responsibilities: ["Select channels", "Review shortlist quality"],
+        tools: ["Boolean search", "Scorecard"],
+        quality_checks: ["Weekly conversion review", "Rubric adherence audit"]
+      }
+    ],
+    ai_use_case_map: [
+      {
+        use_case: "Blind-spot diagnosis",
+        function: "Expose hidden role-brief risk",
+        data_inputs: ["Role brief text", "Hiring context"],
+        ai_output: "Corrected search thesis",
+        human_oversight: "Recruiter lead approval",
+        priority_label: "HIGH"
+      },
+      {
+        use_case: "Screening support",
+        function: "Standardize evaluation evidence",
+        data_inputs: ["Candidate notes", "Scorecard"],
+        ai_output: "Structured shortlist scoring",
+        human_oversight: "Interview panel calibration",
+        priority_label: "MEDIUM"
+      }
+    ],
+    human_in_the_loop_controls: [
+      {
+        control_point: "Search thesis approval",
+        human_role: "Recruiter lead",
+        approval_rule: "Must match role outcomes and constraints",
+        override_rule: "Block sourcing launch until approved"
+      },
+      {
+        control_point: "Shortlist progression",
+        human_role: "Hiring manager",
+        approval_rule: "Scorecard evidence above threshold",
+        override_rule: "Reject candidates lacking evidence"
+      }
+    ],
+    team_roles: [
+      {
+        role: "Recruiter Lead",
+        responsibilities: ["Run diagnosis", "Own scorecard quality gates", "Drive weekly reporting"]
+      },
+      {
+        role: "Hiring Manager",
+        responsibilities: ["Approve success profile", "Provide shortlist decisions", "Resolve tradeoffs quickly"]
+      }
+    ],
+    sop_drafts: [
+      {
+        sop_name: "Role Brief Calibration SOP",
+        purpose: "Convert vague brief into measurable hiring outcomes",
+        trigger: "Before sourcing starts",
+        steps: [
+          "Run blind-spot diagnosis",
+          "Define must-have outcomes",
+          "Lock rubric and decision SLA"
+        ],
+        quality_gate: "No sourcing launch without approved scorecard"
+      }
+    ],
+    pilot_plan: {
+      duration_days: 21,
+      objective: "Validate corrected search thesis and shortlist quality in one sprint.",
+      week_plan: [
+        "Week 1: calibrate profile and launch sourcing",
+        "Week 2: refine channels and screening quality",
+        "Week 3: deliver shortlist with evidence-backed scoring"
+      ],
+      validation_steps: [
+        "Track weekly funnel metrics",
+        "Review rubric adherence",
+        "Run end-of-sprint quality retrospective"
+      ]
+    },
+    operating_cadence: {
+      weekly_rhythm: ["Monday calibration", "Wednesday shortlist review", "Friday decision checkpoint"],
+      meetings: ["Recruiter-hiring manager sync"],
+      reviews: ["Funnel quality review", "Interview signal review"],
+      reporting: ["Weekly progress summary", "Risk and mitigation log"]
+    },
+    execution_plan: {
+      timeline: [
+        {
+          window: "Days 1-7",
+          tasks: ["Confirm success profile", "Launch outreach", "Review first response quality"],
+          owner: "Recruiter Lead",
+          output: "Calibrated search thesis and first qualified pipeline"
+        },
+        {
+          window: "Days 8-14",
+          tasks: ["Tune channels", "Run structured screening", "Calibrate interviewer scoring"],
+          owner: "Recruiter Lead",
+          output: "Shortlist quality uplift"
+        },
+        {
+          window: "Days 15-21",
+          tasks: ["Finalize shortlist", "Deliver evidence-backed recommendations"],
+          owner: "Recruiter + Hiring Manager",
+          output: "Decision-ready shortlist"
+        }
+      ],
+      templates: ["Intake calibration template", "Shortlist scorecard template"],
+      scripts: ["Weekly hiring update script"],
+      prompts: ["Blind-spot diagnosis prompt", "Refine corrected-search-thesis prompt"],
+      checklists: ["Search launch checklist", "Shortlist release checklist"]
+    },
+    metrics: [
+      {
+        metric: "Qualified shortlist rate",
+        definition: "Share of sourced candidates that meet rubric threshold",
+        target: ">= 30%",
+        owner: "Recruiter Lead",
+        cadence: "Weekly"
+      },
+      {
+        metric: "Decision turnaround",
+        definition: "Days from shortlist submission to hiring-manager decision",
+        target: "<= 5 days",
+        owner: "Hiring Manager",
+        cadence: "Weekly"
+      }
+    ],
+    risks_and_controls: [
+      {
+        risk: "Role brief remains under-defined",
+        likelihood_label: "MEDIUM",
+        impact_label: "HIGH",
+        control: "Hold calibration checkpoint before week-2 scaling",
+        owner: "Recruiter Lead"
+      },
+      {
+        risk: "Interview scoring drift",
+        likelihood_label: "MEDIUM",
+        impact_label: "MEDIUM",
+        control: "Run weekly calibration and rubric audit",
+        owner: "Hiring Manager"
+      }
+    ],
+    prioritization: [
+      {
+        recommendation: "Lock corrected search thesis before scaling outreach",
+        impact: "HIGH",
+        effort: "LOW",
+        risk: "LOW",
+        time_to_test: "LOW",
+        ai_suitability: "HIGH",
+        human_oversight_required: "HIGH",
+        priority_label: "HIGH"
+      },
+      {
+        recommendation: "Enforce scorecard thresholds for shortlist progression",
+        impact: "HIGH",
+        effort: "MEDIUM",
+        risk: "LOW",
+        time_to_test: "MEDIUM",
+        ai_suitability: "MEDIUM",
+        human_oversight_required: "HIGH",
+        priority_label: "HIGH"
+      }
+    ],
+    next_actions: [
+      "Run a 30-minute calibration call to confirm top outcomes and constraints.",
+      "Approve corrected search thesis and launch a 7-day sourcing pilot.",
+      "Review shortlist quality with rubric evidence before week-2 expansion."
+    ],
+    known_assumed_unknown: {
+      known: ["Need to improve hiring workflow reliability"],
+      assumed: ["Current brief is missing measurable outcomes"],
+      unknown: ["Final competency weighting", "Decision SLA by stakeholder"]
+    },
+    pathway_payload: {
+      mode: "Workflow System",
+      discovery_system: {
+        assumptions: ["Brief ambiguity is a top risk"],
+        unknowns: ["Outcome weighting"],
+        risks: ["Wrong-profile targeting"],
+        research_questions: ["What predicts success in first 90 days?"],
+        first_experiments: ["Run 7-day sourcing pilot"],
+        validation_steps: ["Score pilot against rubric"],
+        plan_14_day: ["Calibrate brief", "Pilot sourcing", "Review quality"]
+      },
+      workflow_system: {
+        workflow_blueprint_notes: ["Use structured intake and weekly checkpoints"],
+        ai_use_cases: ["Blind-spot diagnosis", "Shortlist scoring support"],
+        human_roles: ["Recruiter lead", "Hiring manager"],
+        sop_focus: ["Intake calibration", "Shortlist review"],
+        quality_gates: ["Thesis approval", "Rubric threshold compliance"],
+        execution_steps: ["Calibrate", "Source", "Screen", "Decide"]
+      },
+      full_operating_system: {
+        opportunity_map_notes: ["Risk and leverage map ready for scaling"],
+        workflow_notes: ["Recruiter execution framework defined"],
+        ai_use_case_notes: ["AI supports diagnosis and consistency"],
+        controls: ["Human approvals before high-commitment decisions"],
+        team_roles: ["Clear ownership for recruiter and hiring manager"],
+        sop_list: ["Calibration SOP", "Shortlist SOP"],
+        pilot_30_day: ["Run phased quality validation over 30 days"],
+        cadence_notes: ["Weekly quality checkpoints"],
+        metrics_notes: ["Track shortlist quality and decision speed"],
+        risk_notes: ["Monitor scoring drift and role-brief ambiguity"],
+        next_actions: ["Lock rubric", "Launch pilot", "Review metrics"],
+        execution_plan_notes: ["Scale after pilot quality bar is met"]
+      }
+    },
+    grounding_notes: [
+      `Fallback mode activated due repeated quality-gate failures: ${detail}`,
+      "Output is structured for safe human review before execution."
+    ],
+    responsibility_contract: {
+      decision_support_mode: "Context-attached decision support",
+      context_attachment_checks: [
+        "Recommendations are tied to user-provided role context.",
+        "Assumptions are explicit and separated from known facts."
+      ],
+      constraint_acknowledgement: [
+        "No assumption of budget, location, or level fit without confirmation.",
+        "High-impact changes require recruiter and hiring-manager sign-off."
+      ],
+      smallest_safe_test:
+        "Run a 7-day sourcing pilot against the corrected search thesis and evaluate shortlist quality before scaling.",
+      non_prescriptive_notice:
+        "This is structured decision support. Validate assumptions and constraints before committing resources.",
+      escalation_triggers: [
+        "Pilot shortlist quality stays below threshold for two checkpoints.",
+        "Stakeholders disagree on scorecard criteria.",
+        "Decision SLAs are repeatedly missed."
+      ]
+    },
+    version: {
+      system_id: crypto.randomUUID(),
+      revision: 1,
+      generated_at: new Date().toISOString()
+    }
+  };
+}
+
+function dedupeStrings(values) {
+  const unique = [];
+  const seen = new Set();
+
+  for (const value of ensureStringArray(values)) {
+    const key = value.toLowerCase();
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    unique.push(value);
+  }
+
+  return unique;
+}
+
+function safeJsonClone(value) {
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return null;
+  }
 }
 
 async function callOpenAIForSystem(env, mode, payload, options = {}) {
@@ -1831,7 +2282,7 @@ function validateRawModelOutput(raw) {
   return { ok: true };
 }
 
-function validateNormalizedSystem(system) {
+function validateNormalizedSystem(system, options = {}) {
   const rawValidation = validateRawModelOutput(system);
   if (!rawValidation.ok) {
     return rawValidation;
@@ -1921,6 +2372,11 @@ function validateNormalizedSystem(system) {
     qualityIssues.push("search_sprint_21_day_plan must include at least 2 actions per week");
   }
 
+  const sourceInput = cleanText(options.sourceInput, 5000);
+  qualityIssues.push(...detectGenericOutputIssues(system, sourceInput));
+  qualityIssues.push(...detectContradictionIssues(system));
+  qualityIssues.push(...detectActionabilityIssues(system));
+
   if (qualityIssues.length) {
     return {
       ok: false,
@@ -1929,6 +2385,227 @@ function validateNormalizedSystem(system) {
   }
 
   return { ok: true };
+}
+
+function detectGenericOutputIssues(system, sourceInput) {
+  const issues = [];
+  const recruitment =
+    system && system.recruitment_operating_system && typeof system.recruitment_operating_system === "object"
+      ? system.recruitment_operating_system
+      : {};
+  const blindSpots =
+    recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+      ? recruitment.blind_spot_diagnosis
+      : {};
+
+  const coreText = [
+    cleanText(system && system.executive_summary, 1400),
+    cleanText(recruitment.job_ad_diagnosis, 1400),
+    cleanText(blindSpots.corrected_search_thesis, 1400),
+    cleanText(recruitment.hidden_success_profile, 1200),
+    cleanText(recruitment.client_briefing_notes, 1200)
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  if (!coreText) {
+    return ["core narrative sections are empty"];
+  }
+
+  if (/\b(tbd|to be determined|lorem ipsum|placeholder)\b/i.test(coreText)) {
+    issues.push("contains unresolved placeholder language");
+  }
+
+  if (/\[(role|company|name|insert|todo)[^\]]*\]/i.test(coreText)) {
+    issues.push("contains unresolved bracket placeholders");
+  }
+
+  const genericFillerHits =
+    coreText.match(/\b(best practices?|synerg(?:y|ies)|across industries|optimi[sz]e efficiency|various stakeholders)\b/gi)
+      || [];
+  if (genericFillerHits.length >= 4) {
+    issues.push("contains excessive generic consulting filler");
+  }
+
+  const stopwords = new Set([
+    "about", "above", "after", "again", "against", "before", "being", "below", "between", "brief", "candidate",
+    "could", "during", "first", "from", "having", "into", "other", "role", "roles", "should", "their", "there",
+    "these", "those", "using", "where", "which", "while", "with", "within", "would", "your", "hiring", "search"
+  ]);
+  const sourceTokens = tokenize(sourceInput).filter((token) => token.length >= 5 && !stopwords.has(token));
+
+  if (sourceTokens.length >= 12) {
+    const outputTokens = new Set(tokenize(coreText));
+    const overlapHits = sourceTokens.filter((token) => outputTokens.has(token)).length;
+    const overlap = overlapHits / sourceTokens.length;
+    if (overlap < 0.05) {
+      issues.push(`low source-term overlap (${overlap.toFixed(2)})`);
+    }
+
+    const anchorTerms = extractAnchorTerms(sourceInput, 4);
+    if (anchorTerms.length >= 2) {
+      const lowerCore = coreText.toLowerCase();
+      const matchedAnchors = anchorTerms.filter((term) => lowerCore.includes(term));
+      if (!matchedAnchors.length) {
+        issues.push("core role anchors from input are not reflected in output");
+      }
+    }
+  }
+
+  return issues;
+}
+
+function detectContradictionIssues(system) {
+  const issues = [];
+  const card = system && system.system_card && typeof system.system_card === "object" ? system.system_card : {};
+  const clarification =
+    system && system.clarification && typeof system.clarification === "object" ? system.clarification : {};
+  const recruitment =
+    system && system.recruitment_operating_system && typeof system.recruitment_operating_system === "object"
+      ? system.recruitment_operating_system
+      : {};
+  const blindSpots =
+    recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+      ? recruitment.blind_spot_diagnosis
+      : {};
+
+  const statedNeed = cleanText(blindSpots.stated_need, 900);
+  const likelyRealNeed = cleanText(blindSpots.likely_real_need, 900);
+  const correctedThesis = cleanText(blindSpots.corrected_search_thesis, 1200);
+
+  if (statedNeed && likelyRealNeed && jaccardSimilarity(statedNeed, likelyRealNeed) > 0.82) {
+    issues.push("blind_spot_diagnosis.stated_need and likely_real_need are too similar");
+  }
+
+  if (statedNeed && correctedThesis && jaccardSimilarity(statedNeed, correctedThesis) > 0.86) {
+    issues.push("corrected_search_thesis does not diverge enough from stated_need");
+  }
+
+  if (["Vague", "Broad", "Needs Discovery", "Needs Constraints"].includes(card.clarity_level)
+    && !clarification.needs_clarification) {
+    issues.push("clarity level requires clarification.needs_clarification=true");
+  }
+
+  if (card.clarity_level === "Clear"
+    && clarification.needs_clarification
+    && ensureStringArray(clarification.questions).length === 0) {
+    issues.push("clarification indicates questions are needed but none were provided");
+  }
+
+  if (card.confidence_level === "HIGH" && ensureStringArray(card.missing_information).length >= 2) {
+    issues.push("confidence_level HIGH conflicts with missing_information volume");
+  }
+
+  return issues;
+}
+
+function detectActionabilityIssues(system) {
+  const issues = [];
+  const card = system && system.system_card && typeof system.system_card === "object" ? system.system_card : {};
+  const nextActions = ensureStringArray(system && system.next_actions);
+  const recruitment =
+    system && system.recruitment_operating_system && typeof system.recruitment_operating_system === "object"
+      ? system.recruitment_operating_system
+      : {};
+  const sprint =
+    recruitment.search_sprint_21_day_plan && typeof recruitment.search_sprint_21_day_plan === "object"
+      ? recruitment.search_sprint_21_day_plan
+      : {};
+
+  if (nextActions.length < 2) {
+    issues.push("next_actions must include at least 2 concrete actions");
+  }
+
+  const actionVerbPattern = /\b(run|define|build|launch|align|review|draft|calibrate|measure|schedule|deliver|test|validate|create|map|source|screen|interview|update|confirm|track)\b/i;
+  const weakActions = nextActions.filter((action) => {
+    const wordCount = action.split(/\s+/).filter(Boolean).length;
+    return wordCount < 4 || !actionVerbPattern.test(action);
+  });
+  if (weakActions.length >= 2) {
+    issues.push("next_actions are too vague or non-actionable");
+  }
+
+  const recommendedStep = cleanText(card.recommended_next_step, 500);
+  if (recommendedStep.split(/\s+/).filter(Boolean).length < 6) {
+    issues.push("system_card.recommended_next_step lacks actionable detail");
+  }
+
+  const sprintActions = [
+    ...ensureStringArray(sprint.week1),
+    ...ensureStringArray(sprint.week2),
+    ...ensureStringArray(sprint.week3)
+  ];
+  if (sprintActions.length) {
+    const detailedActions = sprintActions.filter((action) => action.split(/\s+/).filter(Boolean).length >= 4).length;
+    if (detailedActions < Math.ceil(sprintActions.length * 0.7)) {
+      issues.push("search_sprint_21_day_plan actions are too terse");
+    }
+  }
+
+  return issues;
+}
+
+function extractAnchorTerms(text, limit) {
+  const stopwords = new Set([
+    "about", "above", "after", "again", "against", "before", "being", "below", "between", "brief", "candidate",
+    "could", "during", "first", "from", "having", "into", "other", "role", "roles", "should", "their", "there",
+    "these", "those", "using", "where", "which", "while", "with", "within", "would", "your", "hiring", "search"
+  ]);
+
+  const counts = new Map();
+  for (const token of tokenize(text)) {
+    if (token.length < 5 || stopwords.has(token)) {
+      continue;
+    }
+    counts.set(token, (counts.get(token) || 0) + 1);
+  }
+
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([token]) => token)
+    .slice(0, Math.max(1, Number(limit) || 4));
+}
+
+function jaccardSimilarity(a, b) {
+  const aSet = new Set(tokenize(a).filter((token) => token.length >= 4));
+  const bSet = new Set(tokenize(b).filter((token) => token.length >= 4));
+
+  if (!aSet.size || !bSet.size) {
+    return 0;
+  }
+
+  let intersection = 0;
+  for (const token of aSet) {
+    if (bSet.has(token)) {
+      intersection += 1;
+    }
+  }
+
+  const union = new Set([...aSet, ...bSet]).size;
+  return union ? intersection / union : 0;
+}
+
+function buildRefineSourceInput(command, priorSystem) {
+  const safeCommand = cleanText(command, 700);
+  const prior = priorSystem && typeof priorSystem === "object" ? priorSystem : {};
+  const card = prior.system_card && typeof prior.system_card === "object" ? prior.system_card : {};
+  const recruitment =
+    prior.recruitment_operating_system && typeof prior.recruitment_operating_system === "object"
+      ? prior.recruitment_operating_system
+      : {};
+  const blindSpots =
+    recruitment.blind_spot_diagnosis && typeof recruitment.blind_spot_diagnosis === "object"
+      ? recruitment.blind_spot_diagnosis
+      : {};
+
+  const contextParts = [
+    safeCommand,
+    cleanText(recruitment.job_ad_diagnosis, 320),
+    cleanText(blindSpots.corrected_search_thesis, 320),
+    cleanText(card.recommended_next_step, 220)
+  ].filter(Boolean);
+
+  return contextParts.join("\n");
 }
 
 function normalizeRecruitmentOperatingSystem(value, sourceInput) {
