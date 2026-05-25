@@ -231,7 +231,7 @@ async function checkApiHealth() {
   const apiBase = resolveApiBase();
 
   if (!apiBase) {
-    setStatus("Live API is not connected. Use View Sample Output to preview the diagnosis UI.", "warning");
+    setStatus("Live API is not connected. Use View Sample Output to preview the complete plan UI.", "warning");
     return;
   }
 
@@ -241,7 +241,7 @@ async function checkApiHealth() {
       throw new Error(`Health check failed (${response.status})`);
     }
 
-    setStatus("Live diagnosis API connected", "success");
+    setStatus("Live planning API connected", "success");
   } catch (error) {
     setStatus(error.message || "Live API is not reachable right now", "error");
   }
@@ -286,7 +286,7 @@ async function handleBuild(options = {}) {
   }
 
   try {
-    setBusy(true, "Building system");
+    setBusy(true, "Building plan");
     const data = await postJson("/api/build", payload);
     if (!data.ok || !data.system) {
       throw new Error(data.message || "Build failed");
@@ -1038,7 +1038,7 @@ function showSampleDiagnosisOutput() {
   }
 
   clearRetryAction();
-  setStatus("Showing sample diagnostic output", "success");
+  setStatus("Showing sample complete plan output", "success");
 }
 
 function buildRecruitmentSampleSystem() {
@@ -1423,7 +1423,7 @@ function buildSystemTitle(system) {
     return nextStep.slice(0, 90);
   }
 
-  return "O2O Recruitment Operating System";
+  return "O2O Recruitment Plan";
 }
 
 function slugifyTitle(value) {
@@ -1450,18 +1450,18 @@ function formatBuildTrack(pathway) {
   const value = String(pathway || "").trim();
 
   if (value === "Discovery System") {
-    return "Start With Risk Check";
+    return "Risk and Clarity Plan";
   }
 
   if (value === "Workflow System") {
-    return "Build Core Hiring Steps";
+    return "Core Hiring Plan";
   }
 
   if (value === "Full Operating System") {
-    return "Build Full Hiring Plan";
+    return "Complete Hiring Plan";
   }
 
-  return value || "Build Core Hiring Steps";
+  return value || "Complete Hiring Plan";
 }
 
 function formatSearchType(value) {
@@ -1555,7 +1555,7 @@ function renderLiveCardPreview() {
         </div>
         <div class="preview-row">
           <h4>Plan Mode</h4>
-          <p>Build Full Hiring Plan</p>
+          <p>Complete Hiring Plan</p>
         </div>
         <div class="preview-row">
           <h4>Confidence</h4>
@@ -1569,7 +1569,7 @@ function renderLiveCardPreview() {
   const roleSnapshot = [roleTitle || "Role pending", industry || "Industry pending"].join(" • ");
   const nextStep =
     pathway === "Discovery System"
-      ? "Start with risk check and lock the hiring direction before sourcing."
+      ? "Start with a risk and clarity plan before sourcing."
       : "Build scorecard, interview plan, and a 21-day hiring plan.";
 
   elements.liveCard.innerHTML = `
