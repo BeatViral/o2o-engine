@@ -24,7 +24,7 @@ const OUTPUT_PATHWAYS = [
 ];
 
 const IMPACT_LABELS = ["HIGH", "MEDIUM", "LOW"];
-const GENERATION_MODES = ["fast", "deep"];
+const GENERATION_MODES = ["fast"];
 const SUPPORTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 const CLAUDE_DIAGNOSTIC_REQUIRED_KEYS = [
@@ -1236,10 +1236,6 @@ async function handleBuild(request, env) {
     return corsJson(request, env, { ok: false, message: "Field idea is required." }, 400);
   }
 
-  if (generationMode === "deep" && !env.ANTHROPIC_API_KEY) {
-    return corsJson(request, env, { ok: false, message: "Missing ANTHROPIC_API_KEY secret for deep mode." }, 500);
-  }
-
   if (body.imageContext && !imageContext) {
     const maxMb = (imageLimitBytes / (1024 * 1024)).toFixed(imageLimitBytes % (1024 * 1024) === 0 ? 0 : 2);
     return corsJson(
@@ -1370,10 +1366,6 @@ async function handleRefine(request, env) {
   const submittedVersion = Number(body.versionNumber);
   const command = cleanText(body.command, 600);
 
-  if (generationMode === "deep" && !env.ANTHROPIC_API_KEY) {
-    return corsJson(request, env, { ok: false, message: "Missing ANTHROPIC_API_KEY secret for deep mode." }, 500);
-  }
-
   if (!systemId) {
     return corsJson(request, env, { ok: false, message: "Field systemId is required." }, 400);
   }
@@ -1499,10 +1491,6 @@ async function generateValidatedSystem(env, input) {
     operation: input.mode,
     user_id: cleanText(input.userId, 120) || "anonymous"
   });
-
-  if (generationMode === "deep") {
-    return generateValidatedSystemDeepMode(env, input);
-  }
 
   return generateValidatedSystemFastMode(env, input);
 }
@@ -3348,13 +3336,17 @@ function jaccardSimilarity(a, b) {
 
 function resolveGenerationMode(value) {
   const normalized = cleanText(value, 30).toLowerCase();
+
+  // Backward-compatible alias: deep now uses the same GPT-only fast pipeline.
+  if (normalized === "deep") {
+    return "fast";
+  }
+
   return GENERATION_MODES.includes(normalized) ? normalized : "fast";
 }
 
 function buildPipelineStatusMessage(mode) {
-  return mode === "deep"
-    ? "O2O Deep Diagnosis completed."
-    : "O2O generated this hiring plan using multi-pass diagnostic validation.";
+  return "O2O generated this hiring plan using GPT multi-pass validation.";
 }
 
 function buildBuildContextInput(body, userInput) {

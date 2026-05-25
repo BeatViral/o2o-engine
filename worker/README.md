@@ -4,8 +4,8 @@ Cloudflare Worker backend for O2O Engine. This service holds your OpenAI API key
 
 Generation modes:
 
-- `mode: "fast"` (default): current GPT construction pipeline + O2O Quality Gate.
-- `mode: "deep"`: multi-pass diagnostic pipeline (reasoning, system construction, quality validation, safe fallback).
+- `mode: "fast"` (default): GPT construction pipeline + O2O Quality Gate.
+- `mode: "deep"`: accepted for backward compatibility and mapped to the same GPT pipeline.
 
 ## Endpoints
 
@@ -153,7 +153,6 @@ Returns latest persisted system JSON, metadata, current version number, and next
 3. Set `ALLOWED_ORIGIN` to your GitHub Pages origin.
 4. Set secret:
    - `wrangler secret put OPENAI_API_KEY`
-  - `wrangler secret put ANTHROPIC_API_KEY` (required for `mode: "deep"`)
    - `wrangler secret put SESSION_SIGNING_SECRET`
    - Optional: `wrangler secret put LEMON_WEBHOOK_SECRET`
 5. Bind `SUBSCRIBER_KV` in `wrangler.toml`.

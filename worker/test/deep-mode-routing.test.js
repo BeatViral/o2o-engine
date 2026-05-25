@@ -43,10 +43,10 @@ const strongDiagnostic = {
     "Confidence is medium-high because brief evidence is concrete but compensation and final scope boundaries still require confirmation."
 };
 
-test("resolveGenerationMode defaults to fast and accepts deep", () => {
+test("resolveGenerationMode defaults to fast and maps deep to fast", () => {
   assert.equal(resolveGenerationMode(undefined), "fast");
   assert.equal(resolveGenerationMode(""), "fast");
-  assert.equal(resolveGenerationMode("deep"), "deep");
+  assert.equal(resolveGenerationMode("deep"), "fast");
   assert.equal(resolveGenerationMode("FAST"), "fast");
 });
 
@@ -54,9 +54,8 @@ test("pipeline status messages stay user-neutral", () => {
   const deep = buildPipelineStatusMessage("deep").toLowerCase();
   const fast = buildPipelineStatusMessage("fast").toLowerCase();
 
-  assert.ok(deep.includes("deep diagnosis"));
-  assert.ok(fast.includes("multi-pass diagnostic validation"));
-  assert.equal(deep.includes("gpt"), false);
+  assert.equal(deep, fast);
+  assert.ok(fast.includes("gpt"));
   assert.equal(deep.includes("claude"), false);
 });
 
